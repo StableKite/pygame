@@ -1,0 +1,67 @@
+name: StableKite strict Pyright
+
+on:
+  push:
+    branches:
+      - stablekite/typing-pyright-ci
+  workflow_dispatch:
+
+jobs:
+  strict-pyright:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install released pygame
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pygame==2.6.1" numpy
+          Push-Location $env:RUNNER_TEMP
+          python -c "import pygame, pathlib; print(pygame.__file__); assert pathlib.Path(pygame.__file__).with_name('py.typed').is_file()"
+          Pop-Location
+      - name: Strict installed consumer
+        shell: pwsh
+        run: |
+          @'
+          import pygame
+
+          flags: int = pygame.HIDDEN | pygame.NOFRAME | pygame.RESIZABLE
+          initialized: tuple[int, int] = pygame.init()
+          surface: pygame.Surface = pygame.display.set_mode((640, 480), flags)
+          pygame.display.update()
+          rect: pygame.Rect = pygame.draw.rect(surface, "red", (0, 0, 10, 10))
+          event: pygame.event.Event = pygame.event.Event(pygame.USEREVENT, {})
+          events: list[pygame.event.Event] = pygame.event.get()
+          pygame.event.post(event)
+          pygame.event.pump()
+          font: pygame.font.Font = pygame.font.SysFont("Arial", 12)
+          rendered: pygame.Surface = font.render("x", True, "white")
+          loaded: pygame.Surface = pygame.image.load("placeholder.png")
+          count: int = pygame.joystick.get_count()
+          joystick: pygame.joystick.JoystickType = pygame.joystick.Joystick(0)
+          vector: pygame.Vector2 = pygame.Vector2(1.0, 2.0)
+          rect2: pygame.Rect = pygame.Rect(0, 0, 5, 5)
+          surface2: pygame.Surface = pygame.Surface((8, 8))
+          pixels = pygame.surfarray.pixels3d(surface2)
+          rotated: pygame.Surface = pygame.transform.rotate(surface2, 45.0)
+          scaled: pygame.Surface = pygame.transform.scale(surface2, (4, 4))
+          _ = (initialized, rect, events, rendered, loaded, count, joystick, vector, rect2, pixels, rotated, scaled)
+          '@ | Set-Content strict_consumer.py -Encoding utf8NoBOM
+
+          @'
+          {
+            "typeCheckingMode": "strict",
+            "pythonVersion": "3.13",
+            "include": ["strict_consumer.py"],
+            "reportPrivateImportUsage": "error"
+          }
+          '@ | Set-Content pyrightconfig.json -Encoding utf8NoBOM
+
+          npx --yes pyright@latest --version
+          npx --yes pyright@latest --pythonpath "$env:pythonLocation\python.exe"
