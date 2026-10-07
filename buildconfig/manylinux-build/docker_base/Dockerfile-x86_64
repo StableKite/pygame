@@ -40,6 +40,9 @@ RUN ["bash", "/pkg-config_build/build-pkg-config.sh"]
 ADD cmake /cmake_build/
 RUN ["bash", "/cmake_build/build-cmake.sh"]
 
+# Prefer the tool versions installed above over those in the base image.
+ENV PATH="/opt/python/cp310-cp310/bin:${PATH}"
+
 #ADD zlib-ng /zlib-ng_build/
 #RUN ["bash", "/zlib-ng_build/build-zlib-ng.sh"]
 
