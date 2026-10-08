@@ -5,6 +5,22 @@
 
 #include "include/pgcompat.h"
 
+#ifdef Py_GIL_DISABLED
+static PyObject *
+pg_PyModule_Create(struct PyModuleDef *module)
+{
+    PyObject *module_obj = PyModule_Create2(module, PYTHON_API_VERSION);
+    if (module_obj == NULL) {
+        return NULL;
+    }
+    PyUnstable_Module_SetGIL(module_obj, Py_MOD_GIL_NOT_USED);
+    return module_obj;
+}
+
+#undef PyModule_Create
+#define PyModule_Create(module) pg_PyModule_Create(module)
+#endif
+
 /* Module init function returns new module instance. */
 #define MODINIT_DEFINE(mod_name) PyMODINIT_FUNC PyInit_##mod_name(void)
 
