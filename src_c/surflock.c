@@ -124,8 +124,12 @@ pgSurface_UnlockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
         Py_ssize_t len = PyList_Size(surf->locklist);
         while (--len >= 0 && !found) {
             item = PyList_GetItem(surf->locklist, len);
-            ref = PyWeakref_GetObject(item);
-            if (ref == lockobj) {
+            if (pgWeakref_GetRef(item, &ref) < 0) {
+                return 0;
+            }
+            int matches = (ref == lockobj);
+            Py_XDECREF(ref);
+            if (matches) {
                 if (PySequence_DelItem(surf->locklist, len) == -1) {
                     return 0;
                 }
@@ -139,8 +143,12 @@ pgSurface_UnlockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
         len = PyList_Size(surf->locklist);
         while (--len >= 0) {
             item = PyList_GetItem(surf->locklist, len);
-            ref = PyWeakref_GetObject(item);
-            if (ref == Py_None) {
+            int alive = pgWeakref_GetRef(item, &ref);
+            if (alive < 0) {
+                return 0;
+            }
+            Py_XDECREF(ref);
+            if (alive == 0) {
                 if (PySequence_DelItem(surf->locklist, len) == -1) {
                     noerror = 0;
                 }

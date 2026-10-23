@@ -11,7 +11,38 @@ from pygame import sprite
 
 
 class SpriteModuleTest(unittest.TestCase):
-    pass
+    def test_fill_releases_surface_lock_before_sprite_draw(self):
+        image = pygame.Surface((10, 10))
+        image.fill(pygame.Color("red"))
+        self.assertFalse(image.get_locked())
+        self.assertEqual(image.get_locks(), ())
+        item = sprite.Sprite()
+        item.image = image
+        item.rect = image.get_rect()
+        target = pygame.Surface((20, 20))
+        sprite.Group(item).draw(target)
+        self.assertEqual(target.get_at((5, 5)), pygame.Color("red"))
+
+    def test_live_surface_lock_references(self):
+        image = pygame.Surface((10, 10))
+        image.lock()
+        self.assertEqual(image.get_locks(), (image,))
+        image.unlock()
+        self.assertEqual(image.get_locks(), ())
+
+
+class CythonSpriteTypeTest(unittest.TestCase):
+    def test_dynamic_attributes_are_per_instance(self):
+        try:
+            from pygame._sprite import Sprite
+        except ImportError:
+            self.skipTest("optional Cython sprite extension is not built")
+        first = Sprite()
+        second = Sprite()
+        first.custom_state = 42
+        self.assertEqual(first.custom_state, 42)
+        self.assertEqual(first.__dict__["custom_state"], 42)
+        self.assertFalse(hasattr(second, "custom_state"))
 
 
 ######################### SPRITECOLLIDE FUNCTIONS TEST #########################

@@ -24,4 +24,25 @@
 #define Slice_GET_INDICES_EX(slice, length, start, stop, step, slicelength) \
     PySlice_GetIndicesEx(slice, length, start, stop, step, slicelength)
 
+/* Return a strong reference; borrowed weakref access was removed in 3.15. */
+static inline int
+pgWeakref_GetRef(PyObject *ref, PyObject **pobj)
+{
+#if PY_VERSION_HEX >= 0x030d0000
+    return PyWeakref_GetRef(ref, pobj);
+#else
+    PyObject *obj = PyWeakref_GetObject(ref);
+    *pobj = NULL;
+    if (obj == NULL) {
+        return -1;
+    }
+    if (obj == Py_None) {
+        return 0;
+    }
+    Py_INCREF(obj);
+    *pobj = obj;
+    return 1;
+#endif
+}
+
 #endif /* ~PGCOMPAT_INTERNAL_H */
