@@ -1,3 +1,4 @@
 [build-system]
+build-backend = "_binary_wheel_backend"
+backend-path = ["."]
 requires = ["setuptools", "wheel", "Cython", "numpy"]
-build-backend = "setuptools.build_meta:__legacy__"

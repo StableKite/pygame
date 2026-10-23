@@ -1,0 +1,28 @@
+{
+  "source_commit": "8810e38a1c87645945a790a1268625e381f7f26e",
+  "source_backend": "setuptools.build_meta:__legacy__",
+  "source_backend_path": [],
+  "minimum_glibc": [
+    2,
+    39
+  ],
+  "source_project": "6daa229418877508b4477a954adc4ecc88db8bf5748518c7f15aa7f823fb7d03",
+  "delivery_paths": [
+    "_binary_wheel_backend.py",
+    "binary_wheels.json",
+    "README.binary-wheels.md",
+    "pyproject.toml",
+    "MANIFEST.in"
+  ],
+  "delivery_source_hashes": {
+    "_binary_wheel_backend.py": "fc4697ea1ee586c2ae3df2397be14ef13246f7b7b8f42485057e36c0852fe37a",
+    "README.binary-wheels.md": "39889b869f28bcf7d3a3868f1b984481ca4210ee63ad4632f0d92dfb947e16da",
+    "pyproject.toml": "4f32d83f1b139d9cffef6ccd67e48c4b4718acc1d804aff40627737897b88153",
+    "MANIFEST.in": "0e719773b71c17496ad6c3a5b958c8a8c18bdbe1b4d5be6f1ebe7dd1e9a20553"
+  },
+  "artifact": {
+    "filename": "pygame-2.6.1-cp315-cp315t-manylinux_2_38_x86_64.manylinux_2_39_x86_64.whl",
+    "url": "https://github.com/StableKite/pygame/releases/download/cp315t-linux-r68-20261024/pygame-2.6.1-cp315-cp315t-manylinux_2_38_x86_64.manylinux_2_39_x86_64.whl",
+    "sha256": "403a82d88456e4dab6fea862ff9ed2e203b67ea426d1c551c6fcda718eb7f930"
+  }
+}
