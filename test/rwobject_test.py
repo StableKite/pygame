@@ -78,16 +78,17 @@ class RWopsEncodeStringTest(unittest.TestCase):
     else:
 
         def test_refcount(self):
-            bpath = b" This is a string that is not cached."[1:]
+            # Constant slices can be folded into immortal bytes by CPython.
+            bpath = bytes(bytearray(b"This is a string allocated at runtime."))
             upath = bpath.decode("ascii")
             before = getrefcount(bpath)
-            bpath = encode_string(bpath)
+            alias = encode_string(bpath)
+            self.assertIs(alias, bpath)
+            del alias
             self.assertEqual(getrefcount(bpath), before)
-            bpath = encode_string(upath)
-            if sys.version_info >= (3, 14):
-                self.assertEqual(getrefcount(bpath), before - 1)
-            else:
-                self.assertEqual(getrefcount(bpath), before)
+            # Unicode encoding creates a different object. Its reference count
+            # is unrelated to the ownership count of the original bytes.
+            self.assertEqual(encode_string(upath), bpath)
 
     def test_smp(self):
         utf_8 = b"a\xF0\x93\x82\xA7b"

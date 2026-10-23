@@ -1048,7 +1048,13 @@ chan_play(PyObject *self, PyObject *args, PyObject *kwargs)
         return NULL;
     chunk = pgSound_AsChunk(sound);
     CHECK_CHUNK_VALID(chunk, NULL);
+    MIXER_INIT_CHECK();
+    if (channelnum >= Mix_AllocateChannels(-1))
+        return RAISE(pgExc_SDLError, "invalid channel index");
 
+    /* A finished-channel callback can run synchronously when playback is
+     * replaced. Discard the old queue before that callback can restart it. */
+    Py_CLEAR(channeldata[channelnum].queue);
     Py_BEGIN_ALLOW_THREADS;
     if (fade_ms > 0) {
         channelnum = Mix_FadeInChannelTimed(channelnum, chunk, loops, fade_ms,
@@ -1060,6 +1066,9 @@ chan_play(PyObject *self, PyObject *args, PyObject *kwargs)
     if (channelnum != -1)
         Mix_GroupChannel(channelnum, (int)(intptr_t)chunk);
     Py_END_ALLOW_THREADS;
+
+    if (channelnum == -1)
+        return RAISE(pgExc_SDLError, SDL_GetError());
 
     Py_XDECREF(channeldata[channelnum].sound);
     Py_XDECREF(channeldata[channelnum].queue);
@@ -1132,6 +1141,8 @@ chan_stop(PyObject *self, PyObject *_null)
     int channelnum = pgChannel_AsInt(self);
     MIXER_INIT_CHECK();
 
+    /* Mix_HaltChannel invokes endsound_callback; it must not start the queue. */
+    Py_CLEAR(channeldata[channelnum].queue);
     Py_BEGIN_ALLOW_THREADS;
     Mix_HaltChannel(channelnum);
     Py_END_ALLOW_THREADS;

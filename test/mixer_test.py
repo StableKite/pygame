@@ -867,6 +867,14 @@ class ChannelTypeTest(unittest.TestCase):
         self.assertEqual(channel.get_sound(), sound1)
         self.assertEqual(channel.get_queue(), sound3)
 
+    def test_play_on_removed_channel_raises(self):
+        mixer.set_num_channels(8)
+        channel = mixer.Channel(7)
+        sound = mixer.Sound(b"\x00" * 256)
+        mixer.set_num_channels(1)
+        with self.assertRaises(pygame.error):
+            channel.play(sound)
+
     def test_stop(self):
         # __doc__ (as of 2008-08-02) for pygame.mixer.Channel.stop:
 
