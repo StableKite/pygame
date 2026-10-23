@@ -46,3 +46,9 @@ pgWeakref_GetRef(PyObject *ref, PyObject **pobj)
 }
 
 #endif /* ~PGCOMPAT_INTERNAL_H */
+
+/* Critical sections are no-ops on older GIL-only CPython releases. */
+#ifndef Py_BEGIN_CRITICAL_SECTION
+#define Py_BEGIN_CRITICAL_SECTION(op) {
+#define Py_END_CRITICAL_SECTION() }
+#endif

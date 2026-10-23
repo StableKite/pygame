@@ -77,7 +77,7 @@ pgSurface_Unlock(pgSurfaceObject *surfobj)
 }
 
 static int
-pgSurface_LockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
+_pgSurface_LockBy_impl(pgSurfaceObject *surfobj, PyObject *lockobj)
 {
     PyObject *ref;
     pgSurfaceObject *surf = (pgSurfaceObject *)surfobj;
@@ -113,7 +113,17 @@ pgSurface_LockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
 }
 
 static int
-pgSurface_UnlockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
+pgSurface_LockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
+{
+    int result;
+    Py_BEGIN_CRITICAL_SECTION(surfobj);
+    result = _pgSurface_LockBy_impl(surfobj, lockobj);
+    Py_END_CRITICAL_SECTION();
+    return result;
+}
+
+static int
+_pgSurface_UnlockBy_impl(pgSurfaceObject *surfobj, PyObject *lockobj)
 {
     pgSurfaceObject *surf = (pgSurfaceObject *)surfobj;
     int found = 0;
@@ -123,8 +133,13 @@ pgSurface_UnlockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
         PyObject *item, *ref;
         Py_ssize_t len = PyList_Size(surf->locklist);
         while (--len >= 0 && !found) {
-            item = PyList_GetItem(surf->locklist, len);
-            if (pgWeakref_GetRef(item, &ref) < 0) {
+            item = PySequence_GetItem(surf->locklist, len);
+            if (item == NULL) {
+                return 0;
+            }
+            int alive = pgWeakref_GetRef(item, &ref);
+            Py_DECREF(item);
+            if (alive < 0) {
                 return 0;
             }
             int matches = (ref == lockobj);
@@ -142,8 +157,12 @@ pgSurface_UnlockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
         /* Clear dead references */
         len = PyList_Size(surf->locklist);
         while (--len >= 0) {
-            item = PyList_GetItem(surf->locklist, len);
+            item = PySequence_GetItem(surf->locklist, len);
+            if (item == NULL) {
+                return 0;
+            }
             int alive = pgWeakref_GetRef(item, &ref);
+            Py_DECREF(item);
             if (alive < 0) {
                 return 0;
             }
@@ -175,6 +194,16 @@ pgSurface_UnlockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
     }
 
     return noerror;
+}
+
+static int
+pgSurface_UnlockBy(pgSurfaceObject *surfobj, PyObject *lockobj)
+{
+    int result;
+    Py_BEGIN_CRITICAL_SECTION(surfobj);
+    result = _pgSurface_UnlockBy_impl(surfobj, lockobj);
+    Py_END_CRITICAL_SECTION();
+    return result;
 }
 
 static PyTypeObject pgLifetimeLock_Type = {

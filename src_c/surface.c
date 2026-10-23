@@ -981,7 +981,8 @@ surf_lock(PyObject *self, PyObject *_null)
 static PyObject *
 surf_unlock(PyObject *self, PyObject *_null)
 {
-    pgSurface_Unlock((pgSurfaceObject *)self);
+    if (!pgSurface_Unlock((pgSurfaceObject *)self))
+        return NULL;
     Py_RETURN_NONE;
 }
 
@@ -999,29 +1000,35 @@ static PyObject *
 surf_get_locked(PyObject *self, PyObject *_null)
 {
     pgSurfaceObject *surf = (pgSurfaceObject *)self;
-
-    if (surf->locklist && PyList_Size(surf->locklist) > 0)
-        Py_RETURN_TRUE;
-    Py_RETURN_FALSE;
+    int locked;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    locked = surf->locklist && PyList_Size(surf->locklist) > 0;
+    Py_END_CRITICAL_SECTION();
+    return PyBool_FromLong(locked);
 }
 
 static PyObject *
 surf_get_locks(PyObject *self, PyObject *_null)
 {
     pgSurfaceObject *surf = (pgSurfaceObject *)self;
-    Py_ssize_t len, i = 0;
-    PyObject *tuple, *tmp;
-    if (!surf->locklist)
-        return PyTuple_New(0);
-
-    len = PyList_Size(surf->locklist);
-    tuple = PyTuple_New(len);
-    if (!tuple)
+    PyObject *locks, *tuple, *tmp;
+    Py_ssize_t len, i;
+    /* Keep the weakrefs alive independently of concurrent unlocks. */
+    Py_BEGIN_CRITICAL_SECTION(self);
+    locks = surf->locklist ? PyList_AsTuple(surf->locklist) : PyTuple_New(0);
+    Py_END_CRITICAL_SECTION();
+    if (locks == NULL)
         return NULL;
-
+    len = PyTuple_GET_SIZE(locks);
+    tuple = PyTuple_New(len);
+    if (tuple == NULL) {
+        Py_DECREF(locks);
+        return NULL;
+    }
     for (i = 0; i < len; i++) {
-        int alive = pgWeakref_GetRef(PyList_GetItem(surf->locklist, i), &tmp);
+        int alive = pgWeakref_GetRef(PyTuple_GET_ITEM(locks, i), &tmp);
         if (alive < 0) {
+            Py_DECREF(locks);
             Py_DECREF(tuple);
             return NULL;
         }
@@ -1029,8 +1036,9 @@ surf_get_locks(PyObject *self, PyObject *_null)
             tmp = Py_None;
             Py_INCREF(tmp);
         }
-        PyTuple_SetItem(tuple, i, tmp);
+        PyTuple_SET_ITEM(tuple, i, tmp);
     }
+    Py_DECREF(locks);
     return tuple;
 }
 
