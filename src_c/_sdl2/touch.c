@@ -17,6 +17,7 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "pgcompat.h"
 #include "../pygame.h"
 #include "../pgcompat.h"
 
@@ -147,7 +148,7 @@ MODINIT_DEFINE(touch)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (module == NULL) {
         return NULL;
     }

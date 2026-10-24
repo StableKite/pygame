@@ -75,7 +75,34 @@ typedef struct pg_view_internals_s {
 static PyObject *pgExc_BufferError = NULL;
 
 /* Only one instance of the state per process. */
+
 static PyObject *pg_quit_functions = NULL;
+#ifdef Py_GIL_DISABLED
+static PyMutex pg_quit_mutex = {0};
+#define PG_QUIT_LOCK() PyMutex_Lock(&pg_quit_mutex)
+#define PG_QUIT_UNLOCK() PyMutex_Unlock(&pg_quit_mutex)
+#else
+#define PG_QUIT_LOCK() ((void)0)
+#define PG_QUIT_UNLOCK() ((void)0)
+#endif
+
+static int
+_pg_append_quit(PyObject *value)
+{
+    /* Allocate before the state lock: allocation may run GC/finalizers. */
+    PyObject *candidate = PyList_New(0);
+    int result;
+    if (!candidate) return -1;
+    PG_QUIT_LOCK();
+    if (!pg_quit_functions) {
+        pg_quit_functions = candidate;
+        candidate = NULL;
+    }
+    result = PyList_Append(pg_quit_functions, value);
+    PG_QUIT_UNLOCK();
+    Py_XDECREF(candidate);
+    return result;
+}
 static int pg_is_init = 0;
 static int pg_sdl_was_init = 0;
 SDL_Window *pg_default_window = NULL;
@@ -217,20 +244,10 @@ pg_CheckSDLVersions(void)
 void
 pg_RegisterQuit(void (*func)(void))
 {
-    if (!pg_quit_functions) {
-        pg_quit_functions = PyList_New(0);
-        if (!pg_quit_functions) {
-            return;
-        }
-    }
     if (func) {
         PyObject *obj = PyCapsule_New(func, "quit", NULL);
-        if (!obj) {
-            return;
-        }
-        /* There is no difference between success and error
-           for PyList_Append in this case */
-        (void)PyList_Append(pg_quit_functions, obj);
+        if (!obj) return;
+        (void)_pg_append_quit(obj);
         Py_DECREF(obj);
     }
 }
@@ -245,16 +262,7 @@ pg_RegisterQuit(void (*func)(void))
 static PyObject *
 pg_register_quit(PyObject *self, PyObject *value)
 {
-    if (!pg_quit_functions) {
-        pg_quit_functions = PyList_New(0);
-        if (!pg_quit_functions) {
-            return NULL;
-        }
-    }
-    if (0 != PyList_Append(pg_quit_functions, value)) {
-        return NULL; /* Exception already set */
-    }
-
+    if (_pg_append_quit(value) < 0) return NULL;
     Py_RETURN_NONE;
 }
 
@@ -448,9 +456,11 @@ _pg_quit(void)
         IMPPREFIX "display", /* Display last, this also quits event,time */
         NULL};
 
-    if (pg_quit_functions) {
-        privatefuncs = pg_quit_functions;
-        pg_quit_functions = NULL;
+    PG_QUIT_LOCK();
+    privatefuncs = pg_quit_functions;
+    pg_quit_functions = NULL;
+    PG_QUIT_UNLOCK();
+    if (privatefuncs) {
 
         num = PyList_Size(privatefuncs);
 
@@ -1794,30 +1804,37 @@ _pg_arraystruct_to_format(char *format, PyArrayInterface *inter_p,
 static int
 pgDict_AsBuffer(pg_buffer *pg_view_p, PyObject *dict, int flags)
 {
-    PyObject *shape = PyDict_GetItemString(dict, "shape");
-    PyObject *typestr = PyDict_GetItemString(dict, "typestr");
-    PyObject *data = PyDict_GetItemString(dict, "data");
-    PyObject *strides = PyDict_GetItemString(dict, "strides");
+    PyObject *snapshot = PyDict_Copy(dict);
+    PyObject *shape, *typestr, *data, *strides;
+    int result = -1;
+    if (!snapshot) return -1;
+    shape = PyDict_GetItemString(snapshot, "shape");
+    typestr = PyDict_GetItemString(snapshot, "typestr");
+    data = PyDict_GetItemString(snapshot, "data");
+    strides = PyDict_GetItemString(snapshot, "strides");
 
     if (_pg_shape_check(shape)) {
-        return -1;
+        goto done;
     }
     if (_pg_typestr_check(typestr)) {
-        return -1;
+        goto done;
     }
     if (_pg_data_check(data)) {
-        return -1;
+        goto done;
     }
     if (_pg_strides_check(strides)) {
-        return -1;
+        goto done;
     }
     pg_view_p->release_buffer = _pg_release_buffer_array;
     if (_pg_values_as_buffer((Py_buffer *)pg_view_p, flags, typestr, shape,
                              data, strides)) {
         pgBuffer_Release(pg_view_p);
-        return -1;
+        goto done;
     }
-    return 0;
+    result = 0;
+done:
+    Py_DECREF(snapshot);
+    return result;
 }
 
 static int
@@ -2369,7 +2386,7 @@ MODINIT_DEFINE(base)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (!module) {
         goto error;
     }

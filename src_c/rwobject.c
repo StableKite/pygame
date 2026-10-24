@@ -857,7 +857,7 @@ MODINIT_DEFINE(rwobject)
                                          NULL};
 
     /* Create the module and add the functions */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (module == NULL) {
         return NULL;
     }

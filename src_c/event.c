@@ -60,7 +60,16 @@ static PyObject *joy_instance_map = NULL;
  * returned by pygame.event.custom_type() */
 #define _PGE_CUSTOM_EVENT_INIT PGE_USEREVENT + 1
 
+
 static int _custom_event = _PGE_CUSTOM_EVENT_INIT;
+#ifdef Py_GIL_DISABLED
+static PyMutex pg_custom_event_mutex = {0};
+#define PG_EVENT_ID_LOCK() PyMutex_Lock(&pg_custom_event_mutex)
+#define PG_EVENT_ID_UNLOCK() PyMutex_Unlock(&pg_custom_event_mutex)
+#else
+#define PG_EVENT_ID_LOCK() ((void)0)
+#define PG_EVENT_ID_UNLOCK() ((void)0)
+#endif
 static int _pg_event_is_init = 0;
 
 /* Length of our unicode string in bytes. We need 1 to 3 bytes to store
@@ -632,7 +641,9 @@ pgEvent_AutoQuit(PyObject *self, PyObject *_null)
          * can have a unit test that checks if pygame.event.custom_type()
          * stops returning new types when they are finished, without that
          * test preventing further tests from getting a custom event type.*/
+        PG_EVENT_ID_LOCK();
         _custom_event = _PGE_CUSTOM_EVENT_INIT;
+        PG_EVENT_ID_UNLOCK();
     }
     _pg_event_is_init = 0;
     Py_RETURN_NONE;
@@ -662,12 +673,12 @@ pgEvent_AutoInit(PyObject *self, PyObject *_null)
 static int
 pgEvent_FillUserEvent(pgEventObject *e, SDL_Event *event)
 {
-    Py_INCREF(e->dict);
-
     memset(event, 0, sizeof(SDL_Event));
+    Py_BEGIN_CRITICAL_SECTION(e);
     event->type = _pg_pgevent_proxify(e->type);
+    event->user.data1 = (void *)Py_NewRef(e->dict);
+    Py_END_CRITICAL_SECTION();
     event->user.code = USEROBJ_CHECK;
-    event->user.data1 = (void *)e->dict;
     event->user.data2 = NULL;
 
     return 0;
@@ -875,14 +886,15 @@ PyObject *
 _joy_map_instance(int instance_id)
 {
     PyObject *v, *k = PyLong_FromLong(instance_id);
-    if (!k) {
-        Py_RETURN_NONE;
-    }
-    v = PyDict_GetItem(joy_instance_map, k);
+    if (!k) return NULL;
+    v = pgDict_GetItemRef(joy_instance_map, k);
     if (v) {
         Py_DECREF(k);
-        Py_INCREF(v);
         return v;
+    }
+    if (PyErr_Occurred()) {
+        Py_DECREF(k);
+        return NULL;
     }
     return k;
 }
@@ -1473,10 +1485,18 @@ pg_event_init(pgEventObject *self, PyObject *args, PyObject *kwargs)
         }
     }
 
-    if (_pg_event_populate(self, type, dict) == -1) {
+    pgEventObject populated;
+    PyObject *previous;
+    if (_pg_event_populate(&populated, type, dict) == -1) {
+        Py_DECREF(dict);
         return -1;
     }
-
+    Py_BEGIN_CRITICAL_SECTION(self);
+    previous = self->dict;
+    self->dict = populated.dict;
+    self->type = populated.type;
+    Py_END_CRITICAL_SECTION();
+    Py_XDECREF(previous);
     Py_DECREF(dict);
     return 0;
 }
@@ -2245,11 +2265,13 @@ pg_event_get_blocked(PyObject *self, PyObject *obj)
 static PyObject *
 pg_event_custom_type(PyObject *self, PyObject *_null)
 {
-    if (_custom_event < PG_NUMEVENTS)
-        return PyLong_FromLong(_custom_event++);
-    else
-        return RAISE(pgExc_SDLError,
-                     "pygame.event.custom_type made too many event types.");
+    int result = -1;
+    PG_EVENT_ID_LOCK();
+    if (_custom_event < PG_NUMEVENTS) result = _custom_event++;
+    PG_EVENT_ID_UNLOCK();
+    if (result < 0)
+        return RAISE(pgExc_SDLError, "pygame.event.custom_type made too many event types.");
+    return PyLong_FromLong(result);
 }
 
 static PyMethodDef _event_methods[] = {
@@ -2320,7 +2342,7 @@ MODINIT_DEFINE(event)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (!module) {
         return NULL;
     }

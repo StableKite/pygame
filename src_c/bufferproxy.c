@@ -96,17 +96,24 @@ _get_buffer_from_dict(PyObject *dict, Py_buffer *view_p, int flags)
         return -1;
     }
     dict_view_p = (Py_buffer *)pg_dict_view_p;
-    obj = PyDict_GetItemString(dict, "parent");
+    obj = pgDict_GetItemStringRef(dict, "parent");
     if (!obj) {
-        obj = Py_None;
+        if (PyErr_Occurred()) {
+            pgBuffer_Release(pg_dict_view_p);
+            return -1;
+        }
+        obj = Py_NewRef(Py_None);
     }
-    Py_INCREF(obj);
-    py_callback = PyDict_GetItemString(dict, "before");
+    py_callback = pgDict_GetItemStringRef(dict, "before");
+    if (!py_callback && PyErr_Occurred()) {
+        pgBuffer_Release(pg_dict_view_p);
+        Py_DECREF(obj);
+        return -1;
+    }
 
     if (py_callback) {
         PyObject *py_rval;
 
-        Py_INCREF(py_callback);
         py_rval = PyObject_CallFunctionObjArgs(py_callback, obj, NULL);
         Py_DECREF(py_callback);
         if (!py_rval) {
@@ -147,12 +154,12 @@ _release_buffer_from_dict(Py_buffer *view_p)
     dict_view_p = (Py_buffer *)view_p->internal;
     dict = dict_view_p->obj;
     assert(dict && PyDict_Check(dict));
-    py_callback = PyDict_GetItemString(dict, "after");
+    py_callback = pgDict_GetItemStringRef(dict, "after");
+    if (!py_callback && PyErr_Occurred()) PyErr_Clear();
 
     if (py_callback) {
         PyObject *py_rval;
 
-        Py_INCREF(py_callback);
         py_rval = PyObject_CallFunctionObjArgs(py_callback, obj, NULL);
         if (py_rval) {
             Py_DECREF(py_rval);
@@ -617,7 +624,7 @@ MODINIT_DEFINE(bufferproxy)
 #define bufferproxy_docs ""
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (!module) {
         return NULL;
     }

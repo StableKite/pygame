@@ -508,5 +508,5 @@ MODINIT_DEFINE(mouse)
     }
 
     /* create the module */
-    return PyModule_Create(&_module);
+    return pgModule_Create(&_module);
 }

@@ -28,6 +28,141 @@
 
 #define WORST_CLOCK_ACCURACY 12
 
+
+#ifdef Py_GIL_DISABLED
+typedef struct pgEventTimer {
+    struct pgEventTimer *next;
+    intptr_t timer_id;
+    pgEventObject *event;
+    int repeat;
+} pgEventTimer;
+static pgEventTimer *pg_event_timer = NULL;
+static PyMutex pg_timer_mutex = {0};
+static int timermutex = 0;  /* protected lifecycle flag, not a mutex pointer */
+static intptr_t pg_timer_id = 0;
+
+static int
+pg_timer_is_active(void)
+{
+    int result;
+    PyMutex_Lock(&pg_timer_mutex);
+    result = timermutex;
+    PyMutex_Unlock(&pg_timer_mutex);
+    return result;
+}
+
+static PyObject *
+pg_time_autoquit(PyObject *self, PyObject *_null)
+{
+    pgEventTimer *node, *next;
+    PyMutex_Lock(&pg_timer_mutex);
+    timermutex = 0;
+    node = pg_event_timer;
+    pg_event_timer = NULL;
+    /* Do not reset IDs: callbacks from the previous init must not find a new
+     * record with the same ID after quit/init. */
+    PyMutex_Unlock(&pg_timer_mutex);
+    while (node) {
+        next = node->next;
+        Py_DECREF(node->event);
+        PyMem_Free(node);
+        node = next;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+pg_time_autoinit(PyObject *self, PyObject *_null)
+{
+    PyMutex_Lock(&pg_timer_mutex);
+    timermutex = 1;
+    PyMutex_Unlock(&pg_timer_mutex);
+    Py_RETURN_NONE;
+}
+
+static intptr_t
+_pg_add_event_timer(pgEventObject *ev, int repeat)
+{
+    pgEventTimer *node = PyMem_New(pgEventTimer, 1);
+    intptr_t id;
+    if (!node) { PyErr_NoMemory(); return 0; }
+    node->event = (pgEventObject *)Py_NewRef((PyObject *)ev);
+    node->repeat = repeat <= 0 ? -1 : repeat;
+    PyMutex_Lock(&pg_timer_mutex);
+    if (!timermutex || pg_timer_id == INTPTR_MAX) {
+        PyMutex_Unlock(&pg_timer_mutex);
+        Py_DECREF(node->event);
+        PyMem_Free(node);
+        PyErr_SetString(pgExc_SDLError, "timer is not initialized or timer IDs exhausted");
+        return 0;
+    }
+    id = ++pg_timer_id;
+    node->timer_id = id;
+    node->next = pg_event_timer;
+    pg_event_timer = node;
+    PyMutex_Unlock(&pg_timer_mutex);
+    return id;
+}
+
+static void
+_pg_remove_event_timer(pgEventObject *ev)
+{
+    pgEventTimer **link, *node = NULL;
+    PyMutex_Lock(&pg_timer_mutex);
+    for (link = &pg_event_timer; *link; link = &(*link)->next) {
+        if ((*link)->event->type == ev->type) {
+            node = *link;
+            *link = node->next;
+            break;
+        }
+    }
+    PyMutex_Unlock(&pg_timer_mutex);
+    if (node) {
+        Py_DECREF(node->event);
+        PyMem_Free(node);
+    }
+}
+
+static Uint32
+timer_callback(Uint32 interval, void *param)
+{
+    pgEventTimer **link, *expired = NULL;
+    pgEventObject *event_obj = NULL;
+    SDL_Event event;
+    PyGILState_STATE state = PyGILState_Ensure();
+    PyMutex_Lock(&pg_timer_mutex);
+    for (link = &pg_event_timer; *link; link = &(*link)->next) {
+        pgEventTimer *node = *link;
+        if (node->timer_id != (intptr_t)param) continue;
+        event_obj = (pgEventObject *)Py_NewRef((PyObject *)node->event);
+        if (node->repeat > 0) --node->repeat;
+        if (!node->repeat && node->repeat != -1) {
+            /* API repeat=0 means unlimited; normalize in add below. */
+            expired = node;
+            *link = node->next;
+            interval = 0;
+        }
+        break;
+    }
+    PyMutex_Unlock(&pg_timer_mutex);
+    if (expired) {
+        Py_DECREF(expired->event);
+        PyMem_Free(expired);
+    }
+    if (event_obj) {
+        if (SDL_WasInit(SDL_INIT_VIDEO)) {
+            pgEvent_FillUserEvent(event_obj, &event);
+            if (SDL_PushEvent(&event) <= 0)
+                Py_DECREF((PyObject *)event.user.data1);
+        }
+        else interval = 0;
+        Py_DECREF(event_obj);
+    }
+    else interval = 0;
+    PyGILState_Release(state);
+    return interval;
+}
+#else
 /**
  * Linked list structure to hold timer data.
  */
@@ -253,6 +388,14 @@ timer_callback(Uint32 interval, void *param)
 }
 
 static int
+pg_timer_is_active(void)
+{
+    return timermutex != NULL;
+}
+
+#endif
+
+static int
 accurate_delay(int ticks)
 {
     int funcstart, delay;
@@ -351,7 +494,7 @@ time_set_timer(PyObject *self, PyObject *args, PyObject *kwargs)
                                      &loops))
         return NULL;
 
-    if (!timermutex)
+    if (!pg_timer_is_active())
         return RAISE(pgExc_SDLError, "pygame is not initialized");
 
     if (PyLong_Check(obj)) {
@@ -624,7 +767,7 @@ MODINIT_DEFINE(time)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (!module) {
         return NULL;
     }

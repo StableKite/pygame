@@ -1,3 +1,4 @@
+# cython: freethreading_compatible=True
 from pygame._sdl2.sdl2 import error
 
 cdef extern from "../pygame.h" nogil:

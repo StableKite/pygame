@@ -583,9 +583,10 @@ _parse_color_from_text(PyObject *str_obj, Uint8 *rgba)
     if (!name2) {
         return -1;
     }
-    color = PyDict_GetItem(_COLORDICT, name2);
+    color = pgDict_GetItemRef(_COLORDICT, name2);
     Py_DECREF(name2);
     if (!color) {
+        if (PyErr_Occurred()) return -1;
         switch (_hexcolor(str_obj, rgba)) {
             case TRISTATE_FAIL:
                 PyErr_SetString(PyExc_ValueError, "invalid color name");
@@ -596,9 +597,13 @@ _parse_color_from_text(PyObject *str_obj, Uint8 *rgba)
                 break;
         }
     }
-    else if (!pg_RGBAFromObj(color, rgba)) {
-        PyErr_SetString(PyExc_ValueError, "invalid color");
-        return -1;
+    else {
+        int ok = pg_RGBAFromObj(color, rgba);
+        Py_DECREF(color);
+        if (!ok) {
+            PyErr_SetString(PyExc_ValueError, "invalid color");
+            return -1;
+        }
     }
     return 0;
 }
@@ -1926,7 +1931,7 @@ _color_set_slice(pgColorObject *color, PyObject *idx, PyObject *val)
         if ((step < 0 && start < stop) || (step > 0 && start > stop))
             stop = start;
 
-        if (!(fastitems = PySequence_Fast(val, "expected sequence"))) {
+        if (!(fastitems = PySequence_Tuple(val))) {
             return -1;
         }
         if (PySequence_Fast_GET_SIZE(fastitems) != slicelength) {
@@ -2132,7 +2137,7 @@ MODINIT_DEFINE(color)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (!module) {
         goto error;
     }

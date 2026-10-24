@@ -642,7 +642,7 @@ MODINIT_DEFINE(joystick)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (module == NULL) {
         return NULL;
     }

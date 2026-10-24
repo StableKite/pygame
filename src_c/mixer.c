@@ -106,7 +106,66 @@ struct ChannelData {
     int endevent;
 };
 static struct ChannelData *channeldata = NULL;
+
 static int numchanneldata = 0;
+#ifdef Py_GIL_DISABLED
+static PyMutex channeldata_mutex = {0};
+#define PG_CHANNEL_LOCK() PyMutex_Lock(&channeldata_mutex)
+#define PG_CHANNEL_UNLOCK() PyMutex_Unlock(&channeldata_mutex)
+#else
+#define PG_CHANNEL_LOCK() ((void)0)
+#define PG_CHANNEL_UNLOCK() ((void)0)
+#endif
+
+/* Only touch channeldata while locked. Never call SDL_mixer, drop a Python
+ * reference or run arbitrary Python under this lock: SDL's audio callback
+ * holds the SDL audio lock and takes this state lock in the opposite direction.
+ * The count query below does not acquire SDL's audio lock. */
+static int
+_pg_channel_valid_locked(int index)
+{
+    return channeldata && index >= 0 && index < numchanneldata &&
+           index < Mix_AllocateChannels(-1);
+}
+
+static int
+_pg_channel_set(int index, int queued, PyObject *value)
+{
+    PyObject *old = NULL, *newref = Py_XNewRef(value);
+    int valid;
+    PG_CHANNEL_LOCK();
+    valid = _pg_channel_valid_locked(index);
+    if (valid) {
+        PyObject **slot = queued ? &channeldata[index].queue : &channeldata[index].sound;
+        old = *slot;
+        *slot = newref;
+        newref = NULL;
+    }
+    PG_CHANNEL_UNLOCK();
+    Py_XDECREF(old);
+    Py_XDECREF(newref);
+    if (!valid) {
+        PyErr_SetString(pgExc_SDLError, "invalid channel index");
+        return -1;
+    }
+    return 0;
+}
+
+static PyObject *
+_pg_channel_get(int index, int queued)
+{
+    PyObject *result = NULL;
+    int valid;
+    PG_CHANNEL_LOCK();
+    valid = _pg_channel_valid_locked(index);
+    if (valid) {
+        result = queued ? channeldata[index].queue : channeldata[index].sound;
+        result = Py_NewRef(result ? result : Py_None);
+    }
+    PG_CHANNEL_UNLOCK();
+    if (!valid) PyErr_SetString(pgExc_SDLError, "invalid channel index");
+    return result;
+}
 
 Mix_Music **mx_current_music;
 Mix_Music **mx_queue_music;
@@ -294,30 +353,37 @@ _pg_push_mixer_event(int type, int code)
 static void
 endsound_callback(int channel)
 {
-    if (channeldata) {
-        if (channeldata[channel].endevent && SDL_WasInit(SDL_INIT_VIDEO))
-            _pg_push_mixer_event(channeldata[channel].endevent, channel);
-
-        if (channeldata[channel].queue) {
-            PyGILState_STATE gstate = PyGILState_Ensure();
-            int channelnum;
-            Mix_Chunk *sound = pgSound_AsChunk(channeldata[channel].queue);
-            Py_XDECREF(channeldata[channel].sound);
-            channeldata[channel].sound = channeldata[channel].queue;
-            channeldata[channel].queue = NULL;
-            PyGILState_Release(gstate);
-            channelnum = Mix_PlayChannelTimed(channel, sound, 0, -1);
-            if (channelnum != -1)
-                Mix_GroupChannel(channelnum, (int)(intptr_t)sound);
-        }
-        else {
-            PyGILState_STATE gstate = PyGILState_Ensure();
-            Py_XDECREF(channeldata[channel].sound);
-            channeldata[channel].sound = NULL;
-            PyGILState_Release(gstate);
-            Mix_GroupChannel(channel, -1);
-        }
+    PyObject *previous = NULL, *queued = NULL;
+    int endevent = 0, valid;
+    PyGILState_STATE state = PyGILState_Ensure();
+    PG_CHANNEL_LOCK();
+    valid = channeldata && channel >= 0 && channel < numchanneldata;
+    if (valid) {
+        endevent = channeldata[channel].endevent;
+        previous = channeldata[channel].sound;
+        channeldata[channel].sound = channeldata[channel].queue;
+        channeldata[channel].queue = NULL;
+        queued = Py_XNewRef(channeldata[channel].sound);
     }
+    PG_CHANNEL_UNLOCK();
+    if (valid) {
+        if (endevent && SDL_WasInit(SDL_INIT_VIDEO))
+            _pg_push_mixer_event(endevent, channel);
+        Py_BEGIN_ALLOW_THREADS;
+        if (queued) {
+            Mix_Chunk *chunk = pgSound_AsChunk(queued);
+            int playing = Mix_PlayChannelTimed(channel, chunk, 0, -1);
+            if (playing != -1)
+                Mix_GroupChannel(playing, (int)(intptr_t)chunk);
+        }
+        else Mix_GroupChannel(channel, -1);
+        Py_END_ALLOW_THREADS;
+    }
+    /* Retain both chunks until all SDL calls have finished. Destructors may
+     * re-enter SDL/Python and must run after releasing channeldata_mutex. */
+    Py_XDECREF(previous);
+    Py_XDECREF(queued);
+    PyGILState_Release(state);
 }
 
 static PyObject *
@@ -525,15 +591,23 @@ mixer_quit(PyObject *self, PyObject *_null)
         Mix_HaltMusic();
         Py_END_ALLOW_THREADS;
 
-        if (channeldata) {
-            for (i = 0; i < numchanneldata; ++i) {
-                Py_XDECREF(channeldata[i].sound);
-                Py_XDECREF(channeldata[i].queue);
-            }
-            free(channeldata);
-            channeldata = NULL;
-            numchanneldata = 0;
+        struct ChannelData *olddata;
+        int oldcount;
+        Py_BEGIN_ALLOW_THREADS;
+        Mix_ChannelFinished(NULL);
+        Mix_HaltChannel(-1);
+        Py_END_ALLOW_THREADS;
+        PG_CHANNEL_LOCK();
+        olddata = channeldata;
+        oldcount = numchanneldata;
+        channeldata = NULL;
+        numchanneldata = 0;
+        PG_CHANNEL_UNLOCK();
+        for (i = 0; i < oldcount; ++i) {
+            Py_XDECREF(olddata[i].sound);
+            Py_XDECREF(olddata[i].queue);
         }
+        free(olddata);
 
         if (mx_current_music) {
             if (*mx_current_music) {
@@ -663,11 +737,8 @@ pgSound_Play(PyObject *self, PyObject *args, PyObject *kwargs)
     if (channelnum == -1)
         Py_RETURN_NONE;
 
-    Py_XDECREF(channeldata[channelnum].sound);
-    Py_XDECREF(channeldata[channelnum].queue);
-    channeldata[channelnum].queue = NULL;
-    channeldata[channelnum].sound = self;
-    Py_INCREF(self);
+    if (_pg_channel_set(channelnum, 0, self) < 0) return NULL;
+    if (_pg_channel_set(channelnum, 1, NULL) < 0) return NULL;
 
     // make sure volume on this arbitrary channel is set to full
     Mix_Volume(channelnum, 128);
@@ -1054,7 +1125,7 @@ chan_play(PyObject *self, PyObject *args, PyObject *kwargs)
 
     /* A finished-channel callback can run synchronously when playback is
      * replaced. Discard the old queue before that callback can restart it. */
-    Py_CLEAR(channeldata[channelnum].queue);
+    if (_pg_channel_set(channelnum, 1, NULL) < 0) return NULL;
     Py_BEGIN_ALLOW_THREADS;
     if (fade_ms > 0) {
         channelnum = Mix_FadeInChannelTimed(channelnum, chunk, loops, fade_ms,
@@ -1070,11 +1141,8 @@ chan_play(PyObject *self, PyObject *args, PyObject *kwargs)
     if (channelnum == -1)
         return RAISE(pgExc_SDLError, SDL_GetError());
 
-    Py_XDECREF(channeldata[channelnum].sound);
-    Py_XDECREF(channeldata[channelnum].queue);
-    channeldata[channelnum].sound = sound;
-    channeldata[channelnum].queue = NULL;
-    Py_INCREF(sound);
+    if (_pg_channel_set(channelnum, 0, sound) < 0) return NULL;
+    if (_pg_channel_set(channelnum, 1, NULL) < 0) return NULL;
     Py_RETURN_NONE;
 }
 
@@ -1083,29 +1151,26 @@ chan_queue(PyObject *self, PyObject *sound)
 {
     int channelnum = pgChannel_AsInt(self);
     Mix_Chunk *chunk;
-
-    if (!pgSound_Check(sound)) {
-        return RAISE(PyExc_TypeError,
-                     "The argument must be an instance of Sound");
-    }
-
+    PyObject *current;
+    if (!pgSound_Check(sound))
+        return RAISE(PyExc_TypeError, "The argument must be an instance of Sound");
+    MIXER_INIT_CHECK();
     chunk = pgSound_AsChunk(sound);
     CHECK_CHUNK_VALID(chunk, NULL);
-    if (!channeldata[channelnum].sound) /*nothing playing*/
-    {
+    current = _pg_channel_get(channelnum, 0);
+    if (!current) return NULL;
+    if (current == Py_None) {
+        Py_DECREF(current);
         Py_BEGIN_ALLOW_THREADS;
         channelnum = Mix_PlayChannelTimed(channelnum, chunk, 0, -1);
-        if (channelnum != -1)
-            Mix_GroupChannel(channelnum, (int)(intptr_t)chunk);
+        if (channelnum != -1) Mix_GroupChannel(channelnum, (int)(intptr_t)chunk);
         Py_END_ALLOW_THREADS;
-
-        channeldata[channelnum].sound = sound;
-        Py_INCREF(sound);
+        if (channelnum == -1) return RAISE(pgExc_SDLError, SDL_GetError());
+        if (_pg_channel_set(channelnum, 0, sound) < 0) return NULL;
     }
     else {
-        Py_XDECREF(channeldata[channelnum].queue);
-        channeldata[channelnum].queue = sound;
-        Py_INCREF(sound);
+        Py_DECREF(current);
+        if (_pg_channel_set(channelnum, 1, sound) < 0) return NULL;
     }
     Py_RETURN_NONE;
 }
@@ -1140,9 +1205,7 @@ chan_stop(PyObject *self, PyObject *_null)
 {
     int channelnum = pgChannel_AsInt(self);
     MIXER_INIT_CHECK();
-
-    /* Mix_HaltChannel invokes endsound_callback; it must not start the queue. */
-    Py_CLEAR(channeldata[channelnum].queue);
+    if (_pg_channel_set(channelnum, 1, NULL) < 0) return NULL;
     Py_BEGIN_ALLOW_THREADS;
     Mix_HaltChannel(channelnum);
     Py_END_ALLOW_THREADS;
@@ -1244,50 +1307,42 @@ chan_get_volume(PyObject *self, PyObject *_null)
 static PyObject *
 chan_get_sound(PyObject *self, PyObject *_null)
 {
-    int channelnum = pgChannel_AsInt(self);
-    PyObject *sound;
-
-    sound = channeldata[channelnum].sound;
-    if (!sound)
-        Py_RETURN_NONE;
-
-    Py_INCREF(sound);
-    return sound;
+    MIXER_INIT_CHECK();
+    return _pg_channel_get(pgChannel_AsInt(self), 0);
 }
 
 static PyObject *
 chan_get_queue(PyObject *self, PyObject *_null)
 {
-    int channelnum = pgChannel_AsInt(self);
-    PyObject *sound;
-
-    sound = channeldata[channelnum].queue;
-    if (!sound)
-        Py_RETURN_NONE;
-
-    Py_INCREF(sound);
-    return sound;
+    MIXER_INIT_CHECK();
+    return _pg_channel_get(pgChannel_AsInt(self), 1);
 }
 
 static PyObject *
 chan_set_endevent(PyObject *self, PyObject *args)
 {
-    int channelnum = pgChannel_AsInt(self);
-    int event = SDL_NOEVENT;
-
-    if (!PyArg_ParseTuple(args, "|i", &event))
-        return NULL;
-
-    channeldata[channelnum].endevent = event;
+    int index = pgChannel_AsInt(self), event = SDL_NOEVENT, valid;
+    if (!PyArg_ParseTuple(args, "|i", &event)) return NULL;
+    MIXER_INIT_CHECK();
+    PG_CHANNEL_LOCK();
+    valid = _pg_channel_valid_locked(index);
+    if (valid) channeldata[index].endevent = event;
+    PG_CHANNEL_UNLOCK();
+    if (!valid) return RAISE(pgExc_SDLError, "invalid channel index");
     Py_RETURN_NONE;
 }
 
 static PyObject *
 chan_get_endevent(PyObject *self, PyObject *_null)
 {
-    int channelnum = pgChannel_AsInt(self);
-
-    return PyLong_FromLong(channeldata[channelnum].endevent);
+    int index = pgChannel_AsInt(self), event = 0, valid;
+    MIXER_INIT_CHECK();
+    PG_CHANNEL_LOCK();
+    valid = _pg_channel_valid_locked(index);
+    if (valid) event = channeldata[index].endevent;
+    PG_CHANNEL_UNLOCK();
+    if (!valid) return RAISE(pgExc_SDLError, "invalid channel index");
+    return PyLong_FromLong(event);
 }
 
 static PyMethodDef channel_methods[] = {
@@ -1375,6 +1430,7 @@ set_num_channels(PyObject *self, PyObject *args)
         return NULL;
 
     MIXER_INIT_CHECK();
+    PG_CHANNEL_LOCK();
     if (numchans > numchanneldata) {
         struct ChannelData *cd_org = channeldata;
         channeldata = (struct ChannelData *)realloc(
@@ -1382,6 +1438,7 @@ set_num_channels(PyObject *self, PyObject *args)
         if (!channeldata) {
             /* Restore the original to avoid leaking it */
             channeldata = cd_org;
+            PG_CHANNEL_UNLOCK();
             return PyErr_NoMemory();
         }
         for (i = numchanneldata; i < numchans; ++i) {
@@ -1391,6 +1448,7 @@ set_num_channels(PyObject *self, PyObject *args)
         }
         numchanneldata = numchans;
     }
+    PG_CHANNEL_UNLOCK();
 
     Py_BEGIN_ALLOW_THREADS;
     Mix_AllocateChannels(numchans);
@@ -1967,7 +2025,7 @@ MODINIT_DEFINE(mixer)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (module == NULL) {
         return NULL;
     }

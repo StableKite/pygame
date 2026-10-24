@@ -1,3 +1,4 @@
+# cython: freethreading_compatible=True
 from cpython cimport PyObject
 from pygame._sdl2.sdl2 import error
 from pygame._sdl2.sdl2 import error as errorfnc

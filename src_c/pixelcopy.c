@@ -1279,5 +1279,5 @@ MODINIT_DEFINE(pixelcopy)
         return NULL;
     }
 
-    return PyModule_Create(&_module);
+    return pgModule_Create(&_module);
 }

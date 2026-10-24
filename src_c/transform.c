@@ -3169,7 +3169,7 @@ MODINIT_DEFINE(transform)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
 
     if (module == 0) {
         return NULL;

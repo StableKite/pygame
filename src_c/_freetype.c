@@ -21,6 +21,7 @@
 #define PYGAME_FREETYPE_INTERNAL
 #define PYGAME_FREETYPE_FONT_INTERNAL
 
+#include "pgcompat.h"
 #include "freetype.h"
 
 #include "freetype/ft_wrap.h"
@@ -2196,7 +2197,7 @@ MODINIT_DEFINE(_freetype)
         return NULL;
     }
 
-    module = PyModule_Create(&_freetypemodule);
+    module = pgModule_Create(&_freetypemodule);
 
     if (!module) {
         return NULL;

@@ -1,3 +1,4 @@
+# cython: freethreading_compatible=True
 # pyPortMidi
 # Python bindings for PortMidi
 # John Harrison

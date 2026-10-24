@@ -1806,7 +1806,7 @@ MODINIT_DEFINE(_camera)
     }
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (!module) {
         return NULL;
     }

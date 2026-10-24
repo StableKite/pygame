@@ -1,3 +1,4 @@
+# cython: freethreading_compatible=True
 ##    pygame - Python Game Library
 ##    Copyright (C) 2000-2003, 2007  Pete Shinners
 ##              (C) 2004 Joe Wreschnig

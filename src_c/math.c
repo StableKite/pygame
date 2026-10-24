@@ -1695,7 +1695,7 @@ _vector_distance_helper(pgVector *self, PyObject *other)
     /* Vector-Sequence distance calculation*/
     else {
         double tmp;
-        PyObject *fast_seq = PySequence_Fast(other, "A sequence was expected");
+        PyObject *fast_seq = PySequence_Tuple(other);
         if (!fast_seq) {
             return -1;
         }
@@ -4540,7 +4540,7 @@ MODINIT_DEFINE(math)
     }
 
     /* initialize the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
 
     if (module == NULL) {
         return NULL;

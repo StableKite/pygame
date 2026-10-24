@@ -1231,5 +1231,5 @@ MODINIT_DEFINE(gfxdraw)
         return NULL;
     }
 
-    return PyModule_Create(&_module);
+    return pgModule_Create(&_module);
 }

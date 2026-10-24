@@ -507,5 +507,5 @@ MODINIT_DEFINE(imageext)
     */
 
     /* create the module */
-    return PyModule_Create(&_module);
+    return pgModule_Create(&_module);
 }

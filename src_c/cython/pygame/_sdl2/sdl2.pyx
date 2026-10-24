@@ -1,3 +1,4 @@
+# cython: freethreading_compatible=True
 # cython: language_level=2
 #
 

@@ -78,7 +78,7 @@ MODINIT_DEFINE(constants)
                                          NULL,
                                          NULL};
 
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (module == NULL) {
         return NULL;
     }

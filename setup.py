@@ -237,7 +237,15 @@ if consume_arg('cython_only'):
     compile_cython = True
     cython_only = True
 
-if not cython_only:
+free_threaded_build = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+if free_threaded_build and any(x in sys.argv for x in
+        ("build_ext", "build", "sdist", "bdist_wheel", "install")):
+    # A source checkout ships older generated C for non-FT interpreters. The
+    # normal PEP517 build must regenerate it with the audited FT directives;
+    # callers must not need a special `setup.py cython` preparation step.
+    compile_cython = True
+
+if not cython_only and not compile_cython:
     # If there is no generated C code, compile the cython/.pyx files
     if any(x in ["build_ext", "build", "sdist", "bdist_wheel", "install"] for x in sys.argv) and (
         not glob.glob(os.path.join("src_c", "_sdl2", "audio.c"))
@@ -251,7 +259,7 @@ if compile_cython:
     if "setup_requires" not in METADATA:
         METADATA["setup_requires"] = []
     # We require Cython if there is no generated source code.
-    METADATA["setup_requires"].append('cython>=3.0')
+    METADATA["setup_requires"].append('cython>=3.3.0')
 
 if compile_cython:
     print ("Compiling Cython files")
@@ -309,6 +317,8 @@ if compile_cython:
         else:
             outdated = True
             priority = 0
+        if free_threaded_build:
+            outdated = True
         if outdated:
             print(f'Compiling {pyx_file} because it changed.')
             queue.append((priority, dict(pyx_file=pyx_file, c_file=c_file, fingerprint=None, quiet=False,

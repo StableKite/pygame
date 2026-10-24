@@ -864,7 +864,7 @@ MODINIT_DEFINE(newbuffer)
 #define bufferproxy_docs ""
 
     /* create the module */
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (!module) {
         return NULL;
     }

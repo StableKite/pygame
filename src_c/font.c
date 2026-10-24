@@ -1059,7 +1059,7 @@ MODINIT_DEFINE(font)
     }
     PyFont_Type.tp_new = PyType_GenericNew;
 
-    module = PyModule_Create(&_module);
+    module = pgModule_Create(&_module);
     if (module == NULL) {
         return NULL;
     }
