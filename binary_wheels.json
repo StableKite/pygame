@@ -1,12 +1,12 @@
 {
-  "source_commit": "8810e38a1c87645945a790a1268625e381f7f26e",
+  "source_commit": "b30692ebba8681b1b72837eb57882576a168dc57",
   "source_backend": "setuptools.build_meta:__legacy__",
   "source_backend_path": [],
   "minimum_glibc": [
     2,
     39
   ],
-  "source_project": "6daa229418877508b4477a954adc4ecc88db8bf5748518c7f15aa7f823fb7d03",
+  "source_project": "dfcc64ded5eaada9a9f80fd968078128e4689614e56e15305d050f54355e8573",
   "delivery_paths": [
     "_binary_wheel_backend.py",
     "binary_wheels.json",
@@ -16,13 +16,14 @@
   ],
   "delivery_source_hashes": {
     "_binary_wheel_backend.py": "fc4697ea1ee586c2ae3df2397be14ef13246f7b7b8f42485057e36c0852fe37a",
-    "README.binary-wheels.md": "39889b869f28bcf7d3a3868f1b984481ca4210ee63ad4632f0d92dfb947e16da",
-    "pyproject.toml": "4f32d83f1b139d9cffef6ccd67e48c4b4718acc1d804aff40627737897b88153",
+    "README.binary-wheels.md": "069653a44f0520a5f2a853a7daf01c24b0f6e3a243f8d23847de226076052710",
+    "pyproject.toml": "951a1c450202c558d7e393b01c89349c4ffd8d3e0535a5ec8dc49c6c5a840599",
     "MANIFEST.in": "0e719773b71c17496ad6c3a5b958c8a8c18bdbe1b4d5be6f1ebe7dd1e9a20553"
   },
   "artifact": {
-    "filename": "pygame-2.6.1-cp315-cp315t-manylinux_2_38_x86_64.manylinux_2_39_x86_64.whl",
-    "url": "https://github.com/StableKite/pygame/releases/download/cp315t-linux-r68-20261024/pygame-2.6.1-cp315-cp315t-manylinux_2_38_x86_64.manylinux_2_39_x86_64.whl",
-    "sha256": "403a82d88456e4dab6fea862ff9ed2e203b67ea426d1c551c6fcda718eb7f930"
-  }
+    "filename": "pygame-2.6.1-1-cp315-cp315t-manylinux_2_39_x86_64.whl",
+    "sha256": "801f2d20618fff36468dc3b0dc18dbdd740798809e42fc3f5542743126ca45dc",
+    "url": "https://github.com/StableKite/pygame/releases/download/cp315t-linux-r68-default-giloff-20261024/pygame-2.6.1-1-cp315-cp315t-manylinux_2_39_x86_64.whl"
+  },
+  "runtime_gil_override_required": false
 }

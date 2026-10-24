@@ -13,6 +13,6 @@ builds retain their ordinary development-library prerequisites.
 
 These are engineering dependency artifacts, not a StableKite release.
 
-The native pygame implementation still requires `PYTHON_GIL=0` or `-X gil=0`
-to keep the GIL disabled. This adapter does not mark unsafe modules as nogil-safe.
-The tested dummy SDL suite passes 1842 tests in that runtime mode.
+The native port now preserves default GIL OFF on import, including all Cython modules.
+1852 tests and dedicated timer/mixer/ownership regressions pass without runtime GIL overrides.
+SDL thread affinity and per-object ownership rules remain; see docs/reST/free_threading.rst.
