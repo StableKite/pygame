@@ -13,6 +13,12 @@ builds retain their ordinary development-library prerequisites.
 
 These are engineering dependency artifacts, not a StableKite release.
 
+Windows builds use setuptools' supported MSVC compiler factory and locate
+dumpbin next to the selected compiler. Import-library architecture follows the
+running Python platform. This replaces removed distutils module APIs without
+changing SDL or pygame runtime sources. The manifest records the Windows-only
+vstools helper change while retaining the exact original Linux binary.
+
 The native port now preserves default GIL OFF on import, including all Cython modules.
 1852 tests and dedicated timer/mixer/ownership regressions pass without runtime GIL overrides.
 SDL thread affinity and per-object ownership rules remain; see docs/reST/free_threading.rst.

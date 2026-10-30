@@ -12,13 +12,15 @@
     "binary_wheels.json",
     "README.binary-wheels.md",
     "pyproject.toml",
-    "MANIFEST.in"
+    "MANIFEST.in",
+    "buildconfig/vstools.py"
   ],
   "delivery_source_hashes": {
     "_binary_wheel_backend.py": "fc4697ea1ee586c2ae3df2397be14ef13246f7b7b8f42485057e36c0852fe37a",
-    "README.binary-wheels.md": "069653a44f0520a5f2a853a7daf01c24b0f6e3a243f8d23847de226076052710",
+    "README.binary-wheels.md": "9e7de2400c84c557d5b6650dea0ae174056d824da7296b720200363f2b38a513",
     "pyproject.toml": "951a1c450202c558d7e393b01c89349c4ffd8d3e0535a5ec8dc49c6c5a840599",
-    "MANIFEST.in": "0e719773b71c17496ad6c3a5b958c8a8c18bdbe1b4d5be6f1ebe7dd1e9a20553"
+    "MANIFEST.in": "0e719773b71c17496ad6c3a5b958c8a8c18bdbe1b4d5be6f1ebe7dd1e9a20553",
+    "buildconfig/vstools.py": "0024c89c3ddab1641a7d9a3085ccabe974fa20d0ff0d50dc5432503e27d5c4dc"
   },
   "artifact": {
     "filename": "pygame-2.6.1-1-cp315-cp315t-manylinux_2_39_x86_64.whl",
