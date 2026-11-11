@@ -1,4 +1,4 @@
-This 2.6.1+stablekite.2 review enables the existing per-object AVX2 build by
+This 2.6.1+stablekite.3 review enables the existing per-object AVX2 build by
 default on supported x86 targets. Only simd_blitters_avx2 receives -mavx2 or
 /arch:AVX2. Other native units retain their baseline compiler target. An
 explicit empty PYGAME_DETECT_AVX2 still requests the original disabled build.
@@ -20,3 +20,12 @@ error handling through the original method. AVX2 options are applied only to
 the blitter compilation command, never link commands or the baseline dispatcher.
 The previous private build exposed that setuptools 84 no longer calls spawn;
 its native negative result and warning are retained outside this source tree.
+
+The third private review fixes verified Windows packaging/discovery issues:
+the bundled TIFF dependency is loaded by absolute path, the DLL-directory
+handle remains owned by the package, and missing registry font files are not
+advertised as usable fonts. The existing free-threaded import test uses the
+actual platform extension suffixes and temporary directory on both systems.
+All its GIL and module-count assertions remain. The verbose test aggregator
+accepts a pending description before actual failed subtest result lines, while
+retaining those failures and rejecting other unrecognized result states.

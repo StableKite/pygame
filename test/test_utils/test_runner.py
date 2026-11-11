@@ -170,6 +170,10 @@ def output_into_dots(output):
                     found = True
                     break
             if not found:
+                # unittest leaves a pending description before failed subtests.
+                # Their following result lines still supply ERROR/FAIL status.
+                if l.rstrip().endswith("..."):
+                    continue
                 raise ValueError(f"Not sure what this is. Add to reasons. :{l}")
 
         return "".join(dotlist)

@@ -1,12 +1,14 @@
 """Regression coverage for native ownership with CPython's default GIL OFF."""
 import concurrent.futures
 import importlib
+from importlib.machinery import EXTENSION_SUFFIXES
 import math
 import os
 from pathlib import Path
 import subprocess
 import sys
 import sysconfig
+import tempfile
 import threading
 import time
 import unittest
@@ -23,14 +25,21 @@ class FreeThreadedTest(unittest.TestCase):
         env = os.environ.copy()
         env.pop('PYTHON_GIL', None)
         root = Path(pygame.__file__).parent
-        modules = sorted('pygame.' + str(p.relative_to(root)).replace(os.sep, '.').split('.cpython-')[0]
-                         for p in root.rglob('*.so') if '.cpython-' in p.name)
+        modules = []
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(root).as_posix()
+            suffix = next((s for s in EXTENSION_SUFFIXES if relative.endswith(s)), None)
+            if suffix:
+                modules.append("pygame." + relative[:-len(suffix)].replace("/", "."))
+        modules.sort()
         code = ('import importlib,sys; assert "gil" not in sys._xoptions; '
                 'assert not sys._is_gil_enabled(); '
                 '[(importlib.import_module(m), '
                 '(_ for _ in ()).throw(AssertionError(m)) if sys._is_gil_enabled() else None) '
                 'for m in ' + repr(modules) + ']; print(len(' + repr(modules) + '))')
-        result = subprocess.run([sys.executable, '-c', code], env=env, cwd='/tmp',
+        result = subprocess.run([sys.executable, '-c', code], env=env, cwd=tempfile.gettempdir(),
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertGreaterEqual(int(result.stdout.strip().splitlines()[-1]), 30)

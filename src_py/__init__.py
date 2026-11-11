@@ -35,7 +35,17 @@ if os.name == "nt":
 
     # windows store python does not find the dlls, so we run this
     if sys.version_info > (3, 8):
-        os.add_dll_directory(pygame_dir)  # only available in 3.8+
+        _dll_directory = os.add_dll_directory(pygame_dir)
+
+    # SDL_image loads TIFF by basename through SDL_LoadObject. Load only the
+    # bundled dependency by absolute path, with ctypes' safe dependency search.
+    from ctypes import WinDLL as _WinDLL
+    from pathlib import Path as _Path
+
+    _dll_dependencies = tuple(
+        _WinDLL(str(path)) for path in _Path(pygame_dir).glob("libtiff-*.dll")
+    )
+    del _WinDLL, _Path
 
     # cleanup namespace
     del pygame_dir

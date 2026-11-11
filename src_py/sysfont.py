@@ -81,8 +81,11 @@ def initsysfonts_win32():
 
                 if splitext(font)[1].lower() not in OpenType_extensions:
                     continue
+                font = os.path.expandvars(font)
                 if not dirname(font):
                     font = join(fontdir, font)
+                if not os.path.isfile(font):
+                    continue
 
                 # Some are named A & B, both names should be processed separately
                 # Ex: the main Cambria file is marked as "Cambria & Cambria Math"
