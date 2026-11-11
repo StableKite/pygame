@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import tarfile
+import tempfile
 import urllib.request
 
 
@@ -28,6 +29,7 @@ def ensure_precise_delay(prebuilt_dir, machine_type):
     inputs = {
         'source_commit': SOURCE_COMMIT,
         'source_sha256': SOURCE_SHA256,
+        'builder_sha256': sha256(Path(__file__).read_bytes()).hexdigest(),
         'patch_sha256': sha256(patch.read_bytes()).hexdigest(),
         'vendor': VENDOR,
         'machine': machine_type,
@@ -44,7 +46,8 @@ def ensure_precise_delay(prebuilt_dir, machine_type):
         },
     }
     key = sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
-    cache = Path('prebuilt_downloads') / 'stablekite-sdl2-precise-delay-v1' / key
+    # MSBuild tracking files still require short paths even on long-path hosts.
+    cache = Path(tempfile.gettempdir()) / 'pg-sdl2' / key[:16]
     cache.mkdir(parents=True, exist_ok=True)
     receipt = cache / 'BUILD.json'
     dll = cache / 'build' / 'Release' / 'SDL2.dll'
