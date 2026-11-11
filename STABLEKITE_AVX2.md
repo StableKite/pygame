@@ -1,4 +1,4 @@
-This 2.6.1+stablekite.1 review enables the existing per-object AVX2 build by
+This 2.6.1+stablekite.2 review enables the existing per-object AVX2 build by
 default on supported x86 targets. Only simd_blitters_avx2 receives -mavx2 or
 /arch:AVX2. Other native units retain their baseline compiler target. An
 explicit empty PYGAME_DETECT_AVX2 still requests the original disabled build.
@@ -13,3 +13,10 @@ The older binary-wheel manifest remains an honest record of the older source
 and artifact. Changed build/native sources reject that binary shortcut and
 use the original source backend until a new binary is separately qualified.
 No existing release asset or published version is replaced by this review.
+
+The compiler hook supports the modern setuptools Compiler.call API and the
+legacy Compiler.spawn API. It forwards the original environment, dry-run and
+error handling through the original method. AVX2 options are applied only to
+the blitter compilation command, never link commands or the baseline dispatcher.
+The previous private build exposed that setuptools 84 no longer calls spawn;
+its native negative result and warning are retained outside this source tree.

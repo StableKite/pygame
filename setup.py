@@ -20,7 +20,7 @@ EXTRAS = {}
 
 METADATA = {
     "name": "pygame",
-    "version": "2.6.1+stablekite.1",
+    "version": "2.6.1+stablekite.2",
     "license": "LGPL",
     "url": "https://www.pygame.org",
     "author": "A community project.",
@@ -82,51 +82,39 @@ if os.environ.get('PYGAME_DETECT_AVX2', '1') != '':
     import distutils.ccompiler
 
     avx2_filenames = ['simd_blitters_avx2']
-
     compiler_options = {
         'unix': ('-mavx2',),
         'msvc': ('/arch:AVX2',)
     }
+    _pygame_compiler = distutils.ccompiler.CCompiler
+    _pygame_method = 'call' if hasattr(_pygame_compiler, 'call') else 'spawn'
+    _pygame_original_name = '_pygame_avx2_original_' + _pygame_method
+    _pygame_original = getattr(
+        _pygame_compiler, _pygame_original_name,
+        getattr(_pygame_compiler, _pygame_method))
+    setattr(_pygame_compiler, _pygame_original_name, _pygame_original)
 
-    def spawn(self, cmd, **kwargs):
-        should_use_avx2 = False
-        # try to be thorough in detecting that we are on a platform that potentially supports AVX2
-        machine_name = platform.machine()
-        if ((machine_name.startswith(("x86", "i686")) or
-            machine_name.lower() == "amd64") and
-                os.environ.get("MAC_ARCH") != "arm64"):
-            should_use_avx2 = True
+    def _pygame_compile_call(self, cmd, **kwargs):
+        cmd = list(cmd)
+        arguments = [os.fsdecode(argument) for argument in cmd]
+        machine_name = platform.machine().lower()
+        x86_target = machine_name.startswith(('x86', 'i686', 'amd64'))
+        compile_only = any(argument.lower() in ('-c', '/c')
+                           for argument in arguments)
+        if (compile_only and x86_target and
+                os.environ.get('MAC_ARCH') != 'arm64'):
+            extra_options = compiler_options.get(self.compiler_type, ())
+            for argument in reversed(arguments):
+                if not argument.endswith(self.obj_extension):
+                    continue
+                if any(argument.endswith(filename + self.obj_extension)
+                       for filename in avx2_filenames):
+                    cmd.extend(option for option in extra_options
+                               if option not in cmd)
+                break
+        return _pygame_original(self, cmd, **kwargs)
 
-        if should_use_avx2:
-            extra_options = compiler_options.get(self.compiler_type)
-            if extra_options is not None:
-                # filenames are closer to the end of command line
-                for argument in reversed(cmd):
-                    # Check if argument contains a filename. We must check for all
-                    # possible extensions; checking for target extension is faster.
-                    if not argument.endswith(self.obj_extension):
-                        continue
-
-                    # check for a filename only to avoid building a new string
-                    # with variable extension
-                    for filename in avx2_filenames:
-                        off_end = -len(self.obj_extension)
-                        off_start = -len(filename) + off_end
-                        if argument.endswith(filename, off_start, off_end):
-                            if self.compiler_type == 'bcpp':
-                                # Borland accepts a source file name at the end,
-                                # insert the options before it
-                                cmd[-1:-1] = extra_options
-                            else:
-                                cmd += extra_options
-
-                    # filename is found, no need to search any further
-                    break
-
-        distutils.ccompiler.spawn(cmd, dry_run=self.dry_run, **kwargs)
-
-    distutils.ccompiler.CCompiler.__spawn = distutils.ccompiler.CCompiler.spawn
-    distutils.ccompiler.CCompiler.spawn = spawn
+    setattr(_pygame_compiler, _pygame_method, _pygame_compile_call)
 
 # A (bit hacky) fix for https://github.com/pygame/pygame/issues/2613
 # This is due to the fact that distutils uses command line args to
