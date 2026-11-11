@@ -26,3 +26,7 @@ The manifest records the immutable runtime source, checked carrier files and
 separate platform artifacts. Source builds retain their normal native compiler
 and development-library requirements; bundled Windows source builds also need
 CMake. These are engineering dependency artifacts in the StableKite fork.
+
+Repository attributes keep the checked delivery files and SDL patch in their
+canonical LF form, including ordinary Windows Git checkouts with automatic
+line-ending conversion. Hash validation remains byte-exact.

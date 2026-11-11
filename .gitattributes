@@ -1,0 +1,7 @@
+.gitattributes text eol=lf
+_binary_wheel_backend.py text eol=lf
+README.binary-wheels.md text eol=lf
+binary_wheels.json text eol=lf
+pyproject.toml text eol=lf
+buildconfig/stablekite_sdl2.py text eol=lf
+buildconfig/stablekite-sdl2-precise-delay.patch text eol=lf

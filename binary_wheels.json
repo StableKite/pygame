@@ -10,11 +10,13 @@
   "delivery_paths": [
     "_binary_wheel_backend.py",
     "binary_wheels.json",
-    "README.binary-wheels.md"
+    "README.binary-wheels.md",
+    ".gitattributes"
   ],
   "delivery_source_hashes": {
     "_binary_wheel_backend.py": "e576af1a9e8fde810d62f06ccc9734f7e5f8df5c506b1ec3db3d3a6da572ed1d",
-    "README.binary-wheels.md": "9f6e667cf25fc1ea90e7a9e5c400b2d605b005316a21938639ec66211163e3f4"
+    "README.binary-wheels.md": "32195474d2925895879650a5dfc311ad8e347bda82eb121bb175f45ee8c47113",
+    ".gitattributes": "cb70b8e14e8ced7f3ec31f2cb1ae60b55dfd2ede288a3baf6231478866d60e01"
   },
   "runtime_gil_override_required": false,
   "artifacts": {
