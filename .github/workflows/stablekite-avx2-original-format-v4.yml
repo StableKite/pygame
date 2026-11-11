@@ -1,0 +1,36 @@
+name: Original pygame formatting and generated-doc integrity for immutable AVX2 review
+'on':
+  push:
+    branches:
+    - stablekite/avx2-original-format-ci-v4
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4.1.7
+      with:
+        ref: 6822b8ba58c0940db0aa050475ef53c1c338f5f7
+    - name: Verify exact qualified source
+      shell: bash
+      run: 'test "$(git rev-parse HEAD)" = "6822b8ba58c0940db0aa050475ef53c1c338f5f7"
+
+        '
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.x
+    - uses: pre-commit/action@v3.0.1
+  format-lint-code-check:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4.1.7
+      with:
+        ref: 6822b8ba58c0940db0aa050475ef53c1c338f5f7
+    - name: Verify exact qualified source
+      shell: bash
+      run: 'test "$(git rev-parse HEAD)" = "6822b8ba58c0940db0aa050475ef53c1c338f5f7"
+
+        '
+    - name: Install deps
+      run: python3 -m pip install sphinx
+    - name: Check docs changes are checked in
+      run: "python3 setup.py docs\nif [[ `git status --porcelain` ]]; then\n  echo \"Generating docs caused changes. Please check them in.\"\n  echo \"You may need to run: python3 setup.py docs --fullgeneration\"\n  # Run git status again, so people can see what changed.\n  git status --porcelain\n  exit 1\nfi\n"
