@@ -1,4 +1,4 @@
 [build-system]
 build-backend = "_binary_wheel_backend"
 backend-path = ["."]
-requires = ["setuptools", "wheel", "Cython>=3.3.0", "numpy"]
+requires = ["setuptools", "wheel", "Cython>=3.3.0", "numpy", "cmake>=4.2,<5; sys_platform == 'win32'"]

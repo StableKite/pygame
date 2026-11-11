@@ -135,7 +135,7 @@ def extract_tracebacks(output):
     verbose_mode = " ..." in output
 
     if verbose_mode:
-        if "ERROR" in output or "FAILURE" in output:
+        if re.search(r"^(?:ERROR|FAIL): ", output, re.MULTILINE):
             return "\n\n==".join(output.split("\n\n==")[1:])
     else:
         dots = DOTS.search(output).group(1)
@@ -224,7 +224,7 @@ def combine_results(all_results, t):
         combined += ["".join(failures).lstrip("\n")[:-1]]
     combined += [f"{RAN_TESTS_DIV} {total_tests} tests in {t:.3f}s\n"]
 
-    if failures:
+    if failures or total_fails or total_errors:
         infos = ([f"failures={total_fails}"] if total_fails else []) + (
             [f"errors={total_errors}"] if total_errors else []
         )

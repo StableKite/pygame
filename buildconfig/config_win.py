@@ -392,6 +392,9 @@ def setup():
     return list(DEPS)
 
 def setup_prebuilt_sdl2(prebuilt_dir):
+    from .stablekite_sdl2 import ensure_precise_delay
+
+    ensure_precise_delay(prebuilt_dir, get_machine_type())
     Dependency.huntpaths[:] = [prebuilt_dir]
     Dependency.lib_hunt.extend([
         '',

@@ -1,0 +1,31 @@
+--- a/src/timer/windows/SDL_systimer.c
++++ b/src/timer/windows/SDL_systimer.c
+@@ -163,0 +164,28 @@
++    /* StableKite local change: a high-resolution waitable timer keeps this
++       native wait precise when Windows ignores timer-resolution requests for
++       background processes. It does not change system timer policy. Older
++       Windows versions retain the original Sleep fallback. */
++    if (ms != 0) {
++        typedef HANDLE (WINAPI *CreateTimerExW)(LPSECURITY_ATTRIBUTES, LPCWSTR,
++                                               DWORD, DWORD);
++        HMODULE kernel = GetModuleHandleW(L"kernel32.dll");
++        CreateTimerExW create_timer = kernel ? (CreateTimerExW)GetProcAddress(
++            kernel, "CreateWaitableTimerExW") : NULL;
++        if (create_timer) {
++            const DWORD high_resolution = 0x00000002;
++            HANDLE timer = create_timer(NULL, NULL, high_resolution,
++                                        TIMER_MODIFY_STATE | SYNCHRONIZE);
++            if (timer) {
++                LARGE_INTEGER due;
++                DWORD result = WAIT_FAILED;
++                due.QuadPart = -((LONGLONG)ms * 10000);
++                if (SetWaitableTimer(timer, &due, 0, NULL, NULL, FALSE)) {
++                    result = WaitForSingleObjectEx(timer, INFINITE, FALSE);
++                }
++                CloseHandle(timer);
++                if (result == WAIT_OBJECT_0) {
++                    return;
++                }
++            }
++        }
++    }

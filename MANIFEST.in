@@ -1,3 +1,5 @@
 
 # Include the PEP 517 delivery adapter in source distributions.
 include _binary_wheel_backend.py binary_wheels.json README.binary-wheels.md
+include buildconfig/stablekite_sdl2.py buildconfig/stablekite-sdl2-precise-delay.patch
+include STABLEKITE_SDL2.md
