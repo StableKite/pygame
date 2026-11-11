@@ -1,0 +1,36 @@
+name: Original formatting and generated-doc checks for exact final native6 carrier
+'on':
+  push:
+    branches:
+    - stablekite/carrier-original-format-ci-v6
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4.1.7
+      with:
+        ref: 3436b5c3d91840a3efe7112259a2352b778ca26a
+    - name: Verify exact final carrier
+      shell: bash
+      run: 'test "$(git rev-parse HEAD)" = "3436b5c3d91840a3efe7112259a2352b778ca26a"
+
+        '
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.x
+    - uses: pre-commit/action@v3.0.1
+  format-lint-code-check:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4.1.7
+      with:
+        ref: 3436b5c3d91840a3efe7112259a2352b778ca26a
+    - name: Verify exact final carrier
+      shell: bash
+      run: 'test "$(git rev-parse HEAD)" = "3436b5c3d91840a3efe7112259a2352b778ca26a"
+
+        '
+    - name: Install deps
+      run: python3 -m pip install sphinx
+    - name: Check docs changes are checked in
+      run: "python3 setup.py docs\nif [[ `git status --porcelain` ]]; then\n  echo \"Generating docs caused changes. Please check them in.\"\n  echo \"You may need to run: python3 setup.py docs --fullgeneration\"\n  # Run git status again, so people can see what changed.\n  git status --porcelain\n  exit 1\nfi\n"
