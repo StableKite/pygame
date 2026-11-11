@@ -1,4 +1,4 @@
-This 2.6.1+stablekite.3 review enables the existing per-object AVX2 build by
+This 2.6.1+stablekite.4 review enables the existing per-object AVX2 build by
 default on supported x86 targets. Only simd_blitters_avx2 receives -mavx2 or
 /arch:AVX2. Other native units retain their baseline compiler target. An
 explicit empty PYGAME_DETECT_AVX2 still requests the original disabled build.
@@ -29,3 +29,9 @@ actual platform extension suffixes and temporary directory on both systems.
 All its GIL and module-count assertions remain. The verbose test aggregator
 accepts a pending description before actual failed subtest result lines, while
 retaining those failures and rejecting other unrecognized result states.
+
+The fourth review follows the repository's original pinned format tools.
+Native C tokens and every original test assertion are preserved. The MSVC
+helper imports the same compiler factory through setuptools' modern module.
+An explicit AVX2 build option always requests a source build, including an
+empty option requesting disabled support; no binary shortcut overrides it.

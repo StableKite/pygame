@@ -3463,7 +3463,7 @@ _release_buffer(Py_buffer *view_p)
     }
     else {
         if (!pgSurface_UnlockBy((pgSurfaceObject *)view_p->obj,
-                               consumer ? consumer : Py_None)) {
+                                consumer ? consumer : Py_None)) {
             PyErr_Clear();
         }
         Py_XDECREF(consumer);

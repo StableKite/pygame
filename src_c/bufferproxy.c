@@ -155,7 +155,8 @@ _release_buffer_from_dict(Py_buffer *view_p)
     dict = dict_view_p->obj;
     assert(dict && PyDict_Check(dict));
     py_callback = pgDict_GetItemStringRef(dict, "after");
-    if (!py_callback && PyErr_Occurred()) PyErr_Clear();
+    if (!py_callback && PyErr_Occurred())
+        PyErr_Clear();
 
     if (py_callback) {
         PyObject *py_rval;

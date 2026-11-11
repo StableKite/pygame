@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 import sysconfig
 
-from setuptools._distutils.ccompiler import new_compiler
+from setuptools._distutils.compilers.C.base import new_compiler
 import subprocess
 import os
 

@@ -119,8 +119,8 @@ static PyMutex channeldata_mutex = {0};
 
 /* Only touch channeldata while locked. Never call SDL_mixer, drop a Python
  * reference or run arbitrary Python under this lock: SDL's audio callback
- * holds the SDL audio lock and takes this state lock in the opposite direction.
- * The count query below does not acquire SDL's audio lock. */
+ * holds the SDL audio lock and takes this state lock in the opposite
+ * direction. The count query below does not acquire SDL's audio lock. */
 static int
 _pg_channel_valid_locked(int index)
 {
@@ -136,7 +136,8 @@ _pg_channel_set(int index, int queued, PyObject *value)
     PG_CHANNEL_LOCK();
     valid = _pg_channel_valid_locked(index);
     if (valid) {
-        PyObject **slot = queued ? &channeldata[index].queue : &channeldata[index].sound;
+        PyObject **slot =
+            queued ? &channeldata[index].queue : &channeldata[index].sound;
         old = *slot;
         *slot = newref;
         newref = NULL;
@@ -163,7 +164,8 @@ _pg_channel_get(int index, int queued)
         result = Py_NewRef(result ? result : Py_None);
     }
     PG_CHANNEL_UNLOCK();
-    if (!valid) PyErr_SetString(pgExc_SDLError, "invalid channel index");
+    if (!valid)
+        PyErr_SetString(pgExc_SDLError, "invalid channel index");
     return result;
 }
 
@@ -376,7 +378,8 @@ endsound_callback(int channel)
             if (playing != -1)
                 Mix_GroupChannel(playing, (int)(intptr_t)chunk);
         }
-        else Mix_GroupChannel(channel, -1);
+        else
+            Mix_GroupChannel(channel, -1);
         Py_END_ALLOW_THREADS;
     }
     /* Retain both chunks until all SDL calls have finished. Destructors may
@@ -737,8 +740,10 @@ pgSound_Play(PyObject *self, PyObject *args, PyObject *kwargs)
     if (channelnum == -1)
         Py_RETURN_NONE;
 
-    if (_pg_channel_set(channelnum, 0, self) < 0) return NULL;
-    if (_pg_channel_set(channelnum, 1, NULL) < 0) return NULL;
+    if (_pg_channel_set(channelnum, 0, self) < 0)
+        return NULL;
+    if (_pg_channel_set(channelnum, 1, NULL) < 0)
+        return NULL;
 
     // make sure volume on this arbitrary channel is set to full
     Mix_Volume(channelnum, 128);
@@ -1125,7 +1130,8 @@ chan_play(PyObject *self, PyObject *args, PyObject *kwargs)
 
     /* A finished-channel callback can run synchronously when playback is
      * replaced. Discard the old queue before that callback can restart it. */
-    if (_pg_channel_set(channelnum, 1, NULL) < 0) return NULL;
+    if (_pg_channel_set(channelnum, 1, NULL) < 0)
+        return NULL;
     Py_BEGIN_ALLOW_THREADS;
     if (fade_ms > 0) {
         channelnum = Mix_FadeInChannelTimed(channelnum, chunk, loops, fade_ms,
@@ -1141,8 +1147,10 @@ chan_play(PyObject *self, PyObject *args, PyObject *kwargs)
     if (channelnum == -1)
         return RAISE(pgExc_SDLError, SDL_GetError());
 
-    if (_pg_channel_set(channelnum, 0, sound) < 0) return NULL;
-    if (_pg_channel_set(channelnum, 1, NULL) < 0) return NULL;
+    if (_pg_channel_set(channelnum, 0, sound) < 0)
+        return NULL;
+    if (_pg_channel_set(channelnum, 1, NULL) < 0)
+        return NULL;
     Py_RETURN_NONE;
 }
 
@@ -1153,24 +1161,30 @@ chan_queue(PyObject *self, PyObject *sound)
     Mix_Chunk *chunk;
     PyObject *current;
     if (!pgSound_Check(sound))
-        return RAISE(PyExc_TypeError, "The argument must be an instance of Sound");
+        return RAISE(PyExc_TypeError,
+                     "The argument must be an instance of Sound");
     MIXER_INIT_CHECK();
     chunk = pgSound_AsChunk(sound);
     CHECK_CHUNK_VALID(chunk, NULL);
     current = _pg_channel_get(channelnum, 0);
-    if (!current) return NULL;
+    if (!current)
+        return NULL;
     if (current == Py_None) {
         Py_DECREF(current);
         Py_BEGIN_ALLOW_THREADS;
         channelnum = Mix_PlayChannelTimed(channelnum, chunk, 0, -1);
-        if (channelnum != -1) Mix_GroupChannel(channelnum, (int)(intptr_t)chunk);
+        if (channelnum != -1)
+            Mix_GroupChannel(channelnum, (int)(intptr_t)chunk);
         Py_END_ALLOW_THREADS;
-        if (channelnum == -1) return RAISE(pgExc_SDLError, SDL_GetError());
-        if (_pg_channel_set(channelnum, 0, sound) < 0) return NULL;
+        if (channelnum == -1)
+            return RAISE(pgExc_SDLError, SDL_GetError());
+        if (_pg_channel_set(channelnum, 0, sound) < 0)
+            return NULL;
     }
     else {
         Py_DECREF(current);
-        if (_pg_channel_set(channelnum, 1, sound) < 0) return NULL;
+        if (_pg_channel_set(channelnum, 1, sound) < 0)
+            return NULL;
     }
     Py_RETURN_NONE;
 }
@@ -1205,7 +1219,8 @@ chan_stop(PyObject *self, PyObject *_null)
 {
     int channelnum = pgChannel_AsInt(self);
     MIXER_INIT_CHECK();
-    if (_pg_channel_set(channelnum, 1, NULL) < 0) return NULL;
+    if (_pg_channel_set(channelnum, 1, NULL) < 0)
+        return NULL;
     Py_BEGIN_ALLOW_THREADS;
     Mix_HaltChannel(channelnum);
     Py_END_ALLOW_THREADS;
@@ -1322,13 +1337,16 @@ static PyObject *
 chan_set_endevent(PyObject *self, PyObject *args)
 {
     int index = pgChannel_AsInt(self), event = SDL_NOEVENT, valid;
-    if (!PyArg_ParseTuple(args, "|i", &event)) return NULL;
+    if (!PyArg_ParseTuple(args, "|i", &event))
+        return NULL;
     MIXER_INIT_CHECK();
     PG_CHANNEL_LOCK();
     valid = _pg_channel_valid_locked(index);
-    if (valid) channeldata[index].endevent = event;
+    if (valid)
+        channeldata[index].endevent = event;
     PG_CHANNEL_UNLOCK();
-    if (!valid) return RAISE(pgExc_SDLError, "invalid channel index");
+    if (!valid)
+        return RAISE(pgExc_SDLError, "invalid channel index");
     Py_RETURN_NONE;
 }
 
@@ -1339,9 +1357,11 @@ chan_get_endevent(PyObject *self, PyObject *_null)
     MIXER_INIT_CHECK();
     PG_CHANNEL_LOCK();
     valid = _pg_channel_valid_locked(index);
-    if (valid) event = channeldata[index].endevent;
+    if (valid)
+        event = channeldata[index].endevent;
     PG_CHANNEL_UNLOCK();
-    if (!valid) return RAISE(pgExc_SDLError, "invalid channel index");
+    if (!valid)
+        return RAISE(pgExc_SDLError, "invalid channel index");
     return PyLong_FromLong(event);
 }
 

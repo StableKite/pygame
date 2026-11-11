@@ -60,7 +60,6 @@ static PyObject *joy_instance_map = NULL;
  * returned by pygame.event.custom_type() */
 #define _PGE_CUSTOM_EVENT_INIT PGE_USEREVENT + 1
 
-
 static int _custom_event = _PGE_CUSTOM_EVENT_INIT;
 #ifdef Py_GIL_DISABLED
 static PyMutex pg_custom_event_mutex = {0};
@@ -886,7 +885,8 @@ PyObject *
 _joy_map_instance(int instance_id)
 {
     PyObject *v, *k = PyLong_FromLong(instance_id);
-    if (!k) return NULL;
+    if (!k)
+        return NULL;
     v = pgDict_GetItemRef(joy_instance_map, k);
     if (v) {
         Py_DECREF(k);
@@ -2267,10 +2267,12 @@ pg_event_custom_type(PyObject *self, PyObject *_null)
 {
     int result = -1;
     PG_EVENT_ID_LOCK();
-    if (_custom_event < PG_NUMEVENTS) result = _custom_event++;
+    if (_custom_event < PG_NUMEVENTS)
+        result = _custom_event++;
     PG_EVENT_ID_UNLOCK();
     if (result < 0)
-        return RAISE(pgExc_SDLError, "pygame.event.custom_type made too many event types.");
+        return RAISE(pgExc_SDLError,
+                     "pygame.event.custom_type made too many event types.");
     return PyLong_FromLong(result);
 }
 

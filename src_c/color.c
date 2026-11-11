@@ -586,7 +586,8 @@ _parse_color_from_text(PyObject *str_obj, Uint8 *rgba)
     color = pgDict_GetItemRef(_COLORDICT, name2);
     Py_DECREF(name2);
     if (!color) {
-        if (PyErr_Occurred()) return -1;
+        if (PyErr_Occurred())
+            return -1;
         switch (_hexcolor(str_obj, rgba)) {
             case TRISTATE_FAIL:
                 PyErr_SetString(PyExc_ValueError, "invalid color name");

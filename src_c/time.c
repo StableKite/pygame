@@ -28,7 +28,6 @@
 
 #define WORST_CLOCK_ACCURACY 12
 
-
 #ifdef Py_GIL_DISABLED
 typedef struct pgEventTimer {
     struct pgEventTimer *next;
@@ -38,7 +37,7 @@ typedef struct pgEventTimer {
 } pgEventTimer;
 static pgEventTimer *pg_event_timer = NULL;
 static PyMutex pg_timer_mutex = {0};
-static int timermutex = 0;  /* protected lifecycle flag, not a mutex pointer */
+static int timermutex = 0; /* protected lifecycle flag, not a mutex pointer */
 static intptr_t pg_timer_id = 0;
 
 static int
@@ -85,7 +84,10 @@ _pg_add_event_timer(pgEventObject *ev, int repeat)
 {
     pgEventTimer *node = PyMem_New(pgEventTimer, 1);
     intptr_t id;
-    if (!node) { PyErr_NoMemory(); return 0; }
+    if (!node) {
+        PyErr_NoMemory();
+        return 0;
+    }
     node->event = (pgEventObject *)Py_NewRef((PyObject *)ev);
     node->repeat = repeat <= 0 ? -1 : repeat;
     PyMutex_Lock(&pg_timer_mutex);
@@ -93,7 +95,8 @@ _pg_add_event_timer(pgEventObject *ev, int repeat)
         PyMutex_Unlock(&pg_timer_mutex);
         Py_DECREF(node->event);
         PyMem_Free(node);
-        PyErr_SetString(pgExc_SDLError, "timer is not initialized or timer IDs exhausted");
+        PyErr_SetString(pgExc_SDLError,
+                        "timer is not initialized or timer IDs exhausted");
         return 0;
     }
     id = ++pg_timer_id;
@@ -133,9 +136,11 @@ timer_callback(Uint32 interval, void *param)
     PyMutex_Lock(&pg_timer_mutex);
     for (link = &pg_event_timer; *link; link = &(*link)->next) {
         pgEventTimer *node = *link;
-        if (node->timer_id != (intptr_t)param) continue;
+        if (node->timer_id != (intptr_t)param)
+            continue;
         event_obj = (pgEventObject *)Py_NewRef((PyObject *)node->event);
-        if (node->repeat > 0) --node->repeat;
+        if (node->repeat > 0)
+            --node->repeat;
         if (!node->repeat && node->repeat != -1) {
             /* API repeat=0 means unlimited; normalize in add below. */
             expired = node;
@@ -155,10 +160,12 @@ timer_callback(Uint32 interval, void *param)
             if (SDL_PushEvent(&event) <= 0)
                 Py_DECREF((PyObject *)event.user.data1);
         }
-        else interval = 0;
+        else
+            interval = 0;
         Py_DECREF(event_obj);
     }
-    else interval = 0;
+    else
+        interval = 0;
     PyGILState_Release(state);
     return interval;
 }

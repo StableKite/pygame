@@ -92,7 +92,8 @@ _pg_append_quit(PyObject *value)
     /* Allocate before the state lock: allocation may run GC/finalizers. */
     PyObject *candidate = PyList_New(0);
     int result;
-    if (!candidate) return -1;
+    if (!candidate)
+        return -1;
     PG_QUIT_LOCK();
     if (!pg_quit_functions) {
         pg_quit_functions = candidate;
@@ -246,7 +247,8 @@ pg_RegisterQuit(void (*func)(void))
 {
     if (func) {
         PyObject *obj = PyCapsule_New(func, "quit", NULL);
-        if (!obj) return;
+        if (!obj)
+            return;
         (void)_pg_append_quit(obj);
         Py_DECREF(obj);
     }
@@ -262,7 +264,8 @@ pg_RegisterQuit(void (*func)(void))
 static PyObject *
 pg_register_quit(PyObject *self, PyObject *value)
 {
-    if (_pg_append_quit(value) < 0) return NULL;
+    if (_pg_append_quit(value) < 0)
+        return NULL;
     Py_RETURN_NONE;
 }
 
@@ -461,7 +464,6 @@ _pg_quit(void)
     pg_quit_functions = NULL;
     PG_QUIT_UNLOCK();
     if (privatefuncs) {
-
         num = PyList_Size(privatefuncs);
 
         /*quit funcs in reverse order*/
@@ -1807,7 +1809,8 @@ pgDict_AsBuffer(pg_buffer *pg_view_p, PyObject *dict, int flags)
     PyObject *snapshot = PyDict_Copy(dict);
     PyObject *shape, *typestr, *data, *strides;
     int result = -1;
-    if (!snapshot) return -1;
+    if (!snapshot)
+        return -1;
     shape = PyDict_GetItemString(snapshot, "shape");
     typestr = PyDict_GetItemString(snapshot, "typestr");
     data = PyDict_GetItemString(snapshot, "data");

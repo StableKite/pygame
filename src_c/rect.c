@@ -1013,24 +1013,31 @@ pg_rect_collidedict(pgRectObject *self, PyObject *args, PyObject *kwargs)
     PyObject *dict, *items, *ret;
     Py_ssize_t i, size;
     static char *keywords[] = {"rect_dict", "values", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i", keywords, &dict, &values))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i", keywords, &dict,
+                                     &values))
         return NULL;
     if (!PyDict_Check(dict))
         return RAISE(PyExc_TypeError, "first argument must be a dict");
     items = PyDict_Items(dict);
-    if (!items) return NULL;
+    if (!items)
+        return NULL;
     ret = Py_NewRef(Py_None);
-    if (!ret) { Py_DECREF(items); return NULL; }
+    if (!ret) {
+        Py_DECREF(items);
+        return NULL;
+    }
     size = PyList_GET_SIZE(items);
     for (i = 0; i < size; ++i) {
         PyObject *pair = PyList_GET_ITEM(items, i);
-        PyObject *key = PyTuple_GET_ITEM(pair, 0), *val = PyTuple_GET_ITEM(pair, 1);
+        PyObject *key = PyTuple_GET_ITEM(pair, 0),
+                 *val = PyTuple_GET_ITEM(pair, 1);
         argrect = pgRect_FromObject(values ? val : key, &temp);
         if (!argrect) {
             Py_DECREF(items);
             Py_DECREF(ret);
-            return RAISE(PyExc_TypeError, values ? "dict must have rectstyle values"
-                                               : "dict must have rectstyle keys");
+            return RAISE(PyExc_TypeError,
+                         values ? "dict must have rectstyle values"
+                                : "dict must have rectstyle keys");
         }
         if (_pg_do_rects_intersect(&own, argrect)) {
             Py_SETREF(ret, Py_NewRef(pair));
@@ -1049,28 +1056,37 @@ pg_rect_collidedictall(pgRectObject *self, PyObject *args, PyObject *kwargs)
     PyObject *dict, *items, *ret;
     Py_ssize_t i, size;
     static char *keywords[] = {"rect_dict", "values", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i", keywords, &dict, &values))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i", keywords, &dict,
+                                     &values))
         return NULL;
     if (!PyDict_Check(dict))
         return RAISE(PyExc_TypeError, "first argument must be a dict");
     items = PyDict_Items(dict);
-    if (!items) return NULL;
+    if (!items)
+        return NULL;
     ret = PyList_New(0);
-    if (!ret) { Py_DECREF(items); return NULL; }
+    if (!ret) {
+        Py_DECREF(items);
+        return NULL;
+    }
     size = PyList_GET_SIZE(items);
     for (i = 0; i < size; ++i) {
         PyObject *pair = PyList_GET_ITEM(items, i);
-        PyObject *key = PyTuple_GET_ITEM(pair, 0), *val = PyTuple_GET_ITEM(pair, 1);
+        PyObject *key = PyTuple_GET_ITEM(pair, 0),
+                 *val = PyTuple_GET_ITEM(pair, 1);
         argrect = pgRect_FromObject(values ? val : key, &temp);
         if (!argrect) {
             Py_DECREF(items);
             Py_DECREF(ret);
-            return RAISE(PyExc_TypeError, values ? "dict must have rectstyle values"
-                                               : "dict must have rectstyle keys");
+            return RAISE(PyExc_TypeError,
+                         values ? "dict must have rectstyle values"
+                                : "dict must have rectstyle keys");
         }
         if (_pg_do_rects_intersect(&own, argrect)) {
             if (PyList_Append(ret, pair) < 0) {
-                Py_DECREF(items); Py_DECREF(ret); return NULL;
+                Py_DECREF(items);
+                Py_DECREF(ret);
+                return NULL;
             }
         }
     }
