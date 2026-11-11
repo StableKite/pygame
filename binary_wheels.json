@@ -1,31 +1,34 @@
 {
-  "source_commit": "b30692ebba8681b1b72837eb57882576a168dc57",
+  "source_commit": "078fc97dece70e0e4f31834b8791969ccb2daae0",
   "source_backend": "setuptools.build_meta:__legacy__",
   "source_backend_path": [],
   "minimum_glibc": [
     2,
-    39
+    27
   ],
-  "source_project": "dfcc64ded5eaada9a9f80fd968078128e4689614e56e15305d050f54355e8573",
+  "source_project": "b28304d1058c1fdfec8140fac774f34b96c1c8febc1310084019f087b31987d6",
   "delivery_paths": [
     "_binary_wheel_backend.py",
     "binary_wheels.json",
-    "README.binary-wheels.md",
-    "pyproject.toml",
-    "MANIFEST.in",
-    "buildconfig/vstools.py"
+    "README.binary-wheels.md"
   ],
   "delivery_source_hashes": {
-    "_binary_wheel_backend.py": "fc4697ea1ee586c2ae3df2397be14ef13246f7b7b8f42485057e36c0852fe37a",
-    "README.binary-wheels.md": "9e7de2400c84c557d5b6650dea0ae174056d824da7296b720200363f2b38a513",
-    "pyproject.toml": "951a1c450202c558d7e393b01c89349c4ffd8d3e0535a5ec8dc49c6c5a840599",
-    "MANIFEST.in": "0e719773b71c17496ad6c3a5b958c8a8c18bdbe1b4d5be6f1ebe7dd1e9a20553",
-    "buildconfig/vstools.py": "0024c89c3ddab1641a7d9a3085ccabe974fa20d0ff0d50dc5432503e27d5c4dc"
+    "_binary_wheel_backend.py": "e576af1a9e8fde810d62f06ccc9734f7e5f8df5c506b1ec3db3d3a6da572ed1d",
+    "README.binary-wheels.md": "9f6e667cf25fc1ea90e7a9e5c400b2d605b005316a21938639ec66211163e3f4"
   },
-  "artifact": {
-    "filename": "pygame-2.6.1-1-cp315-cp315t-manylinux_2_39_x86_64.whl",
-    "sha256": "801f2d20618fff36468dc3b0dc18dbdd740798809e42fc3f5542743126ca45dc",
-    "url": "https://github.com/StableKite/pygame/releases/download/cp315t-linux-r68-default-giloff-20261024/pygame-2.6.1-1-cp315-cp315t-manylinux_2_39_x86_64.whl"
-  },
-  "runtime_gil_override_required": false
+  "runtime_gil_override_required": false,
+  "artifacts": {
+    "win32": {
+      "filename": "pygame-2.6.1+stablekite.6-cp315-cp315t-win_amd64.whl",
+      "bytes": 6050500,
+      "sha256": "4b496cb4fb914fe5b8d4e78591a1ad761e349e7585d1c6e3d9f2bdbd908b5f71",
+      "url": "https://github.com/StableKite/pygame/releases/download/cp315t-pygame261-stablekite6-20261111-1/pygame-2.6.1%2Bstablekite.6-cp315-cp315t-win_amd64.whl"
+    },
+    "linux": {
+      "filename": "pygame-2.6.1+stablekite.6-cp315-cp315t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "bytes": 11859973,
+      "sha256": "516763bb52e6176d453d33ed71c5a272b9154d9131511c4313c3a4b219f706dc",
+      "url": "https://github.com/StableKite/pygame/releases/download/cp315t-pygame261-stablekite6-20261111-1/pygame-2.6.1%2Bstablekite.6-cp315-cp315t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+    }
+  }
 }

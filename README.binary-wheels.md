@@ -1,24 +1,28 @@
-# Experimental CPython 3.15t Linux wheels
+# Qualified CPython 3.15t Windows and Linux wheels
 
-A normal `pip install` from this repository selects the verified release wheel
-for the recorded source snapshot on Linux x86_64, CPython 3.15t and glibc 2.39+.
-pip performs downloading, dependency resolution and SHA256 validation.
-No consumer SDK setup or extra build flag is required for this binary path.
+Normal `pip install git+https://github.com/StableKite/pygame.git` selects the
+checked release wheel for the exact source snapshot on CPython 3.15t, Windows
+AMD64 or Linux x86_64 with glibc 2.27 or newer. pip verifies the pinned SHA256.
+The installed genuine version is `2.6.1+stablekite.6`; no runtime GIL override
+or consumer overlay is used.
 
-The original PEP 517 backend and its build requirements are preserved. Changed
-native/build sources, another ABI/platform, explicit configuration settings or
-compiler overrides use that original source build. The JSON manifest records
-the source commit, artifact hash and the checked delivery metadata. Source
-builds retain their ordinary development-library prerequisites.
+AVX2 is compiled only for the dedicated blitters and selected by actual CPU
+dispatch. The same Linux wheel passed 200 exact blend comparisons under native
+AVX2 and QEMU Nehalem without AVX2. The full original command passed 1852 tests
+on each actual CPython 3.15.2t OS with the original disk audio backend, waits,
+assertions, exclusions and 300-second per-module timeout.
 
-These are engineering dependency artifacts, not a StableKite release.
+Windows SDL2 is reproducibly built from the pinned original 2.28.4 source with
+the precise native wait patch described in `STABLEKITE_SDL2.md`. Its revision
+marks the local change. Other bundled media dependencies retain their inputs.
 
-Windows builds use setuptools' supported MSVC compiler factory and locate
-dumpbin next to the selected compiler. Import-library architecture follows the
-running Python platform. This replaces removed distutils module APIs without
-changing SDL or pygame runtime sources. The manifest records the Windows-only
-vstools helper change while retaining the exact original Linux binary.
+Changed source, another platform or ABI, explicit configuration settings,
+compiler overrides, or any explicit `PYGAME_DETECT_AVX2` value (including an
+empty value) select the original source build. A deliberate AVX2 optout keeps
+the original missing-AVX2 warning and baseline fallback; negative control
+wheels are kept private and are never release assets.
 
-The native port now preserves default GIL OFF on import, including all Cython modules.
-1852 tests and dedicated timer/mixer/ownership regressions pass without runtime GIL overrides.
-SDL thread affinity and per-object ownership rules remain; see docs/reST/free_threading.rst.
+The manifest records the immutable runtime source, checked carrier files and
+separate platform artifacts. Source builds retain their normal native compiler
+and development-library requirements; bundled Windows source builds also need
+CMake. These are engineering dependency artifacts in the StableKite fork.
