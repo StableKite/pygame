@@ -20,7 +20,7 @@ EXTRAS = {}
 
 METADATA = {
     "name": "pygame",
-    "version": "2.6.1",
+    "version": "2.6.1+stablekite.1",
     "license": "LGPL",
     "url": "https://www.pygame.org",
     "author": "A community project.",
@@ -78,7 +78,7 @@ from setuptools import setup
 import distutils
 
 
-if os.environ.get('PYGAME_DETECT_AVX2', '') != '':
+if os.environ.get('PYGAME_DETECT_AVX2', '1') != '':
     import distutils.ccompiler
 
     avx2_filenames = ['simd_blitters_avx2']
